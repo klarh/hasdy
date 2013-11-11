@@ -6,6 +6,7 @@ import Data.NumInstances
 import Hasdy.Types
 import Hasdy.Prop
 import Hasdy.Neighbor.Slow
+import Hasdy.Integrate.Leapfrog
 import Hasdy.Potentials.LJ
 
 import Data.Array.Accelerate.Interpreter

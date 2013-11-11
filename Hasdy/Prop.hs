@@ -29,6 +29,10 @@ instance (Elt a, IsNum a)=>Num (PerParticleProp a) where
   abs = perParticleMap abs
   signum = perParticleMap signum
 
+instance (Elt a, IsNum a, IsFloating a)=>Fractional (PerParticleProp a) where
+  fromRational _ = undefined
+  recip = perParticleMap recip
+
 newtype PerTypeProp a =
   PerTypeProp {unPerTypeProp::M.Map ParticleType (Acc (A.Scalar a))}
 newtype PerTypeProp' a =
