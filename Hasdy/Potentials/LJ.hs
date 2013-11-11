@@ -8,7 +8,7 @@ data LJ r = LJ {epsilon::Acc (A.Scalar r),
                 sigma::Acc (A.Scalar r),
                 rcut::Acc (A.Scalar r)}
 
-ljForce::(Elt r, IsFloating r)=>LJ r->Exp (Vec3 r)->Exp (Vec3 r)
+ljForce::(Elt r, IsFloating r)=>LJ r->Vec3 r->Vec3 r
 ljForce params r = map3 (prefactor*) r
   where
     prefactor = 24*epsilon'*sig6/r22/r22*(1 - 2*sig6/r22/r2)
@@ -19,7 +19,7 @@ ljForce params r = map3 (prefactor*) r
     sigma' = the . sigma $ params
     epsilon' = the . epsilon $ params
 
-ljPotential::(Elt r, IsFloating r)=>LJ r->Exp (Vec3 r)->Exp r
+ljPotential::(Elt r, IsFloating r)=>LJ r->Vec3 r->Exp r
 ljPotential params r = epsilon'*(sig12f - sig6f)
   where
     epsilon' = (A.constant 4)*(the . epsilon $ params)

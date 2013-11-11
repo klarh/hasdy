@@ -41,7 +41,6 @@ singleToParticleProp::Elt a=>SingleProp a->PerParticleProp a->PerParticleProp a
 singleToParticleProp (SingleProp x) (PerParticleProp template) = PerParticleProp x'
   where
     x' = M.map (broadcast x) template
---    broadcast::Elt a=>Acc (A.Scalar a)->Acc (A.Vector a)->Acc (A.Vector a)
     broadcast from to = A.replicate (A.lift $ Z:.(A.size to)) from
 
 -- make the symbolic value a newtype

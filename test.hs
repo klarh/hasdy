@@ -11,7 +11,7 @@ import Hasdy.Potentials.LJ
 import Data.Array.Accelerate.Interpreter
 
 main = do
-  let dr = run . unit $ A.constant (2.0**(1.0/6), 0, 0)
+  let dr = run . unit $ A.constant (1, 0, 0)
       lj = LJ (unit 1) (unit 1) (unit 3) :: LJ Float
       ljf r = unit $ ljForce lj (the r)
       ljp r = unit $ ljPotential lj (the r)
