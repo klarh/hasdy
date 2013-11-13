@@ -4,7 +4,7 @@ import Control.Applicative ((<$>))
 import Data.Array.Accelerate as A
 import Data.Map as M
 
-import Hasdy.Types
+import Hasdy.Types (ParticleType)
 import Hasdy.Vectors (Vec3'(..), plus3, minus3, times3, div3)
 
 -- | 'PerParticleProp' is an associated list of 'ParticleType's with
@@ -41,36 +41,44 @@ perParticleZipWith' f (PerParticleProp x) (PerParticleProp y) = PerParticleProp 
 
 -- | Add two 'PerParticleProp' 'Vec3's, discarding values for types
 -- not in both 'PerParticleProp's.
-plusp3::(Elt a, IsNum a)=>PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)
+plusp3::(Elt a, IsNum a)=>PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)->
+        PerParticleProp (Vec3' a)
 plusp3 = perParticleZipWith plus3
 -- | Subtract a 'PerParticleProp' 'Vec3' from another, discarding
 -- values for types not in both 'PerParticleProp's.
-minusp3::(Elt a, IsNum a)=>PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)
+minusp3::(Elt a, IsNum a)=>PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)->
+         PerParticleProp (Vec3' a)
 minusp3 = perParticleZipWith minus3
 -- | Multiply two 'PerParticleProp' 'Vec3's, discarding values for
 -- types not in both 'PerParticleProp's.
-timesp3::(Elt a, IsNum a)=>PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)
+timesp3::(Elt a, IsNum a)=>PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)->
+         PerParticleProp (Vec3' a)
 timesp3 = perParticleZipWith times3
 -- | Divide a 'PerParticleProp' 'Vec3' by another, discarding values
 -- for types not in both 'PerParticleProp's.
-divp3::(Elt a, IsFloating a)=>PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)
+divp3::(Elt a, IsFloating a)=>PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)->
+       PerParticleProp (Vec3' a)
 divp3 = perParticleZipWith div3
 
 -- | Add two 'PerParticleProp' 'Vec3's, carrying along values for
 -- types not in both 'PerParticleProp's.
-plusp3'::(Elt a, IsNum a)=>PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)
+plusp3'::(Elt a, IsNum a)=>PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)->
+         PerParticleProp (Vec3' a)
 plusp3' = perParticleZipWith' plus3
 -- | Subtract a 'PerParticleProp' 'Vec3' from another, carrying along
 -- values for types not in both 'PerParticleProp's.
-minusp3'::(Elt a, IsNum a)=>PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)
+minusp3'::(Elt a, IsNum a)=>PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)->
+          PerParticleProp (Vec3' a)
 minusp3' = perParticleZipWith' minus3
 -- | Multiply two 'PerParticleProp' 'Vec3's, carrying along values for
 -- types not in both 'PerParticleProp's.
-timesp3'::(Elt a, IsNum a)=>PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)
+timesp3'::(Elt a, IsNum a)=>PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)->
+          PerParticleProp (Vec3' a)
 timesp3' = perParticleZipWith' times3
 -- | Divide a 'PerParticleProp' 'Vec3' by another, carrying along values for
 -- types not in both 'PerParticleProp's.
-divp3'::(Elt a, IsFloating a)=>PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)
+divp3'::(Elt a, IsFloating a)=>PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)->
+        PerParticleProp (Vec3' a)
 divp3' = perParticleZipWith' div3
 
 -- | Default Num instance of PerParticleProp only works for scalars
