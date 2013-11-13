@@ -5,12 +5,18 @@ import Data.Array.Accelerate (Acc, Exp)
 import Data.Array.Accelerate as A
 import Data.NumInstances
 
+-- | Non-symbolic pair
 type Vec2' a = (a, a)
+-- | Non-symbolic triple
 type Vec3' a = (a, a, a)
+-- | Non-symbolic quadruple
 type Vec4' a = (a, a, a, a)
 
+-- | Symbolic pair
 type Vec2 a = Exp (Vec2' a)
+-- | Symbolic triple
 type Vec3 a = Exp (Vec3' a)
+-- | Symbolic quadruple
 type Vec4 a = Exp (Vec4' a)
 
 zipWith3'::(a->b->c)->Vec3' a->Vec3' b->Vec3' c
