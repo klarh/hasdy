@@ -1,6 +1,10 @@
 
 import Data.Array.Accelerate as A
 import Data.Map as M
+import Data.Text.IO (writeFile)
+import Data.Text.Lazy (toStrict)
+import Data.Text.Lazy.Builder (toLazyText)
+import System.IO (FilePath(..))
 import Data.NumInstances
 
 import Hasdy.Types
@@ -31,3 +35,5 @@ main = do
       f = run1 ljf dr
       u = run1 ljp dr
   print (f, u)
+  let positions = run $ A.generate (A.index1 33) (\_->A.constant (0, 0, 0))
+  Data.Text.IO.writeFile "test.pos" $ toStrict . toLazyText . posFrame $ positions
