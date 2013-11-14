@@ -10,6 +10,7 @@ import Hasdy.Integrate.Leapfrog
 import Hasdy.Potentials.LJ
 import Hasdy.Spatial
 import Hasdy.Vectors
+import Hasdy.Dump.Pos
 
 import Data.Array.Accelerate.Interpreter
 
