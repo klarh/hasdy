@@ -114,8 +114,12 @@ newtype SingleProp' a = SingleProp' {unSingleProp'::A.Scalar a}
 -- | Given a 'SingleProp' to broadcast and a 'PerParticleProp'
 -- indicating the shapes to match, replicate the 'SingleProp' to the
 -- same shape.
-singleToParticleProp::Elt a=>SingleProp a->PerParticleProp a->PerParticleProp a
+singleToParticleProp::(Elt a, Elt b)=>SingleProp a->PerParticleProp b->PerParticleProp a
 singleToParticleProp (SingleProp x) (PerParticleProp template) = PerParticleProp x'
   where
     x' = M.map (broadcast x) template
     broadcast from to = A.replicate (A.lift $ Z:.(A.size to)) from
+
+-- | Lift a constant value into a 'SingleProp'
+constToSingleProp::Elt a=>a->SingleProp a
+constToSingleProp = SingleProp . A.unit . A.constant
