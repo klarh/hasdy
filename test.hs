@@ -42,7 +42,8 @@ main = do
         where
           (Z:.x:.y:.z) = A.unlift idx
           scale = 1.7
-      positions = run . A.flatten $ A.generate (A.constant $ (Z:.4:.4:.4) :: Exp DIM3) grid
+      n = 16
+      positions = run . A.flatten $ A.generate (A.constant $ (Z:.n:.n:.n) :: Exp DIM3) grid
       positions' = PerParticleProp $ M.fromList [(ParticleType 0, use positions)]
       velocities = perParticleMap (scale3 0) positions'
   Data.Text.IO.writeFile "init.pos" $ toStrict . toLazyText . posFrame $ positions
