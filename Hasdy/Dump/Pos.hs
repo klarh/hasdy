@@ -13,7 +13,7 @@ import Hasdy.Vectors(Vec3'(..))
 
 posFrame::A.Vector (Vec3' Float)->Builder
 posFrame positions = ("def A \"sphere 1 00cffe\"\n" `mappend`
-                      mconcat (posLine <$> A.toList positions) `mappend` "\n")
+                      mconcat (posLine <$> A.toList positions) `mappend` "\neof\n")
 
 posLine::Vec3' Float->Builder
 posLine r = build ("A {} {} {}\n" :: Format) r

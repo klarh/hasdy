@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Hasdy.Prop where
 
 import Control.Applicative ((<$>))
@@ -38,6 +39,36 @@ perParticleZipWith' f (PerParticleProp x) (PerParticleProp y) = PerParticleProp 
   where
     z' = A.map (A.uncurry f) <$> M.intersectionWith A.zip x y
     z = M.union z' $ M.union x y
+
+-- | Grab a specific element from a 'PerParticleProp' and stick it
+-- together into an 'Acc' bundle.
+bundlePerParticle::(Arrays a, Elt b)=>ParticleType->Acc a->PerParticleProp b->Acc (a, Vector b)
+bundlePerParticle typ pre prop = A.lift (pre, vec)
+  where
+    vec = unPerParticleProp prop M.! typ
+
+-- | Grab a specific element from a 'PerParticleProp'' and stick it
+-- together into a bundle.
+bundlePerParticle'::(Arrays a, Elt b)=>ParticleType->a->PerParticleProp' b->(a, Vector b)
+bundlePerParticle' typ pre prop = (pre, vec)
+  where
+    vec = unPerParticleProp' prop M.! typ
+
+-- | Take an 'Acc' bundle, a type, and a 'PerParticleProp' and overwrite
+-- the 'PerParticleProp's value with that from the 'Acc' bundle.
+unBundlePerParticle::(Arrays a, Elt b)=>ParticleType->Acc (a, Vector b)->PerParticleProp b->(Acc a, PerParticleProp b)
+unBundlePerParticle typ pre prop = (arrays, PerParticleProp . M.union new $ unPerParticleProp prop)
+  where
+    new = M.fromList [(typ, vec)]
+    (arrays, vec) = A.unlift pre
+
+-- | Take a bundle, a type, and a 'PerParticleProp'' and overwrite
+-- the 'PerParticleProp''s value with that from the bundle.
+unBundlePerParticle'::(Arrays a, Elt b)=>ParticleType->(a, Vector b)->PerParticleProp' b->(a, PerParticleProp' b)
+unBundlePerParticle' typ pre prop = (arrays, PerParticleProp' . M.union new $ unPerParticleProp' prop)
+  where
+    new = M.fromList [(typ, vec)]
+    (arrays, vec) = pre
 
 -- | Add two 'PerParticleProp' 'Vec3's, discarding values for types
 -- not in both 'PerParticleProp's.
