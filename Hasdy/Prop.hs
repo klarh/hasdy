@@ -17,6 +17,10 @@ newtype PerParticleProp a =
 newtype PerParticleProp' a =
   PerParticleProp' {unPerParticleProp'::M.Map ParticleType (A.Vector a)}
 
+-- | Transform a set of 'PerParticleProp''s into 'PerParticleProp's
+usePerParticle::Elt a=>PerParticleProp' a->PerParticleProp a
+usePerParticle (PerParticleProp' m) = PerParticleProp $ A.use <$> m
+
 -- | Map a function onto each particle's attribute
 perParticleMap::(Elt a, Elt b)=>(Exp a->Exp b)->PerParticleProp a->PerParticleProp b
 perParticleMap f (PerParticleProp x) = PerParticleProp $ M.map (A.map f) x
