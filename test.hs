@@ -26,6 +26,7 @@ import Data.Array.Accelerate.CUDA
 
 lj = LJ (unit 1) (unit 1) (unit 3) :: LJ Float
 dt = constToSingleProp 0.005
+typ = ParticleType 0
 
 timestep::(PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))->
           (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
@@ -35,13 +36,13 @@ timestep (pos, vel) = leapfrog dt masses forces (pos, vel)
     masses = singleToParticleProp (constToSingleProp 1) pos
     typ = ParticleType 0
 
-timestep' (pos, vel) = do
-  let (pos', vel') = iterate timestep (pos, vel) Prelude.!! 10 :: (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
-      positionsA' = unPerParticleProp pos' M.! ParticleType 0 :: Acc (Vector (Vec3' Float))
-      positionsA = run positionsA'
-  Data.Text.IO.appendFile "dump.pos" $ toStrict . toLazyText . posFrame $ positionsA
---  print positionsA'
-  return (pos', vel')
+-- timestep' (pos, vel) = do
+--   let (pos', vel') = iterate timestep (pos, vel) Prelude.!! 10 :: (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
+--       positionsA' = unPerParticleProp pos' M.! ParticleType 0 :: Acc (Vector (Vec3' Float))
+--       positionsA = run positionsA'
+--   Data.Text.IO.appendFile "dump.pos" $ toStrict . toLazyText . posFrame $ positionsA
+-- --  print positionsA'
+--   return (pos', vel')
 
 multitimestep n (pos, vel) = do
   (pos', vel') <- timestep' (pos, vel)
@@ -49,12 +50,21 @@ multitimestep n (pos, vel) = do
     then return (pos', vel')
     else multitimestep (n-1) (pos', vel')
 
--- timestep'::(PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))->IO (PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))
--- timestep' (positions, velocities) = do
---   let positions' = usePerParticle positions
---       velocities' = usePerParticle velocities
---       (positions'', velocities'') = iterate timestep (positions', velocities') Prelude.!! 10 :: (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
---   Data.Text.IO.appendFile "dump.pos" $ toStrict . toLazyText . posFrame $ positions'
+timestep'::(PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))->IO (PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))
+timestep' (positions, velocities) = do
+  let accTimestep posvelIn = bundlePerParticle typ velOut positions'
+        where
+          (velIn, positions) = unBundlePerParticle typ posvelIn
+          (_, velocities) = unBundlePerParticle typ velIn
+          (positions', velocities') = iterate timestep (positions, velocities) Prelude.!! 10 :: (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
+          velOut = bundlePerParticle typ (A.use ()) velocities'
+      posvelIn = bundlePerParticle' typ velIn positions
+      velIn = bundlePerParticle' typ () velocities
+      posvelOut = run1 accTimestep posvelIn
+      (vel'', positions'') = unBundlePerParticle' typ posvelOut
+      (_, velocities'') = unBundlePerParticle' typ vel''
+  Data.Text.IO.appendFile "dump.pos" $ toStrict . toLazyText . posFrame $ unPerParticleProp' positions'' M.! typ
+  return (positions'', velocities'')
 
 -- timestep'::(PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))->IO (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
 -- timestep' (positions, velocities) = do
@@ -97,5 +107,5 @@ main = do
       velocities = perParticleMap (scale3 0) positions
   (n':_) <- getArgs
   let n = read n'::Int
-  multitimestep n (positions, velocities)
+  multitimestep n (runPerParticle run positions, runPerParticle run velocities)
   return ()

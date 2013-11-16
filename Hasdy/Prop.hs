@@ -21,6 +21,10 @@ newtype PerParticleProp' a =
 usePerParticle::Elt a=>PerParticleProp' a->PerParticleProp a
 usePerParticle (PerParticleProp' m) = PerParticleProp $ A.use <$> m
 
+-- | Evaluate a symbolic 'PerParticleProp' given an evaluation function
+runPerParticle::(Arrays (Vector a), Elt a)=>(Acc (Vector a)->Vector a)->PerParticleProp a->PerParticleProp' a
+runPerParticle run (PerParticleProp m) = PerParticleProp' $ run <$> m
+
 -- | Map a function onto each particle's attribute
 perParticleMap::(Elt a, Elt b)=>(Exp a->Exp b)->PerParticleProp a->PerParticleProp b
 perParticleMap f (PerParticleProp x) = PerParticleProp $ M.map (A.map f) x
@@ -60,16 +64,16 @@ bundlePerParticle' typ pre prop = (pre, vec)
 
 -- | Take an 'Acc' bundle, a type, and a 'PerParticleProp' and overwrite
 -- the 'PerParticleProp's value with that from the 'Acc' bundle.
-unBundlePerParticle::(Arrays a, Elt b)=>ParticleType->Acc (a, Vector b)->PerParticleProp b->(Acc a, PerParticleProp b)
-unBundlePerParticle typ pre prop = (arrays, PerParticleProp . M.union new $ unPerParticleProp prop)
+unBundlePerParticle::(Arrays a, Elt b)=>ParticleType->Acc (a, Vector b)->(Acc a, PerParticleProp b)
+unBundlePerParticle typ pre = (arrays, PerParticleProp new)
   where
     new = M.fromList [(typ, vec)]
     (arrays, vec) = A.unlift pre
 
 -- | Take a bundle, a type, and a 'PerParticleProp'' and overwrite
 -- the 'PerParticleProp''s value with that from the bundle.
-unBundlePerParticle'::(Arrays a, Elt b)=>ParticleType->(a, Vector b)->PerParticleProp' b->(a, PerParticleProp' b)
-unBundlePerParticle' typ pre prop = (arrays, PerParticleProp' . M.union new $ unPerParticleProp' prop)
+unBundlePerParticle'::(Arrays a, Elt b)=>ParticleType->(a, Vector b)->(a, PerParticleProp' b)
+unBundlePerParticle' typ pre = (arrays, PerParticleProp' new)
   where
     new = M.fromList [(typ, vec)]
     (arrays, vec) = pre
