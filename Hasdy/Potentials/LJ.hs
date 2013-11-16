@@ -11,7 +11,7 @@ data LJ r = LJ {epsilon::Acc (A.Scalar r),
 ljForce::(Elt r, IsFloating r)=>LJ r->Vec3 r->Vec3 r
 ljForce params r = map3 (prefactor*) r
   where
-    prefactor = 24*epsilon'*sig6/r22/r22*(1 - 2*sig6/r22/r2)
+    prefactor = 24*epsilon'*sig6/r22/r22*(2*sig6/r22/r2 - 1)
     r2 = dot3 r r
     r22 = r2*r2
     sig3 = sigma'*sigma'*sigma'
