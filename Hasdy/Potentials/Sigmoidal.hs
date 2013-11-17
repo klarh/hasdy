@@ -18,8 +18,7 @@ import Hasdy.Vectors
 
 data Sigmoidal r = Sigmoidal {epsilon::Acc (A.Scalar r),
                               r0::Acc (A.Scalar r),
-                              k::Acc (A.Scalar r),
-                              rcut::Acc (A.Scalar r)}
+                              k::Acc (A.Scalar r)}
 
 sigmoidalForce::(Elt r, IsFloating r)=>Sigmoidal r->Vec3 r->Vec3 r
 sigmoidalForce params r = map3 (prefactor*) r

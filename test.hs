@@ -43,8 +43,8 @@ n = 16
 v0 = 1e-1
 box = A.constant box'
 box' = scale3' scale . pure3' $ Prelude.fromIntegral n
-lj = LJ (unit 1) (unit 1) (unit 3) :: LJ Float
-sig = Sigmoidal (unit 1) (unit 1) (unit 5) (unit 2) :: Sigmoidal Float
+lj = LJ (unit 1) (unit 1) :: LJ Float
+sig = Sigmoidal (unit 1) (unit 1) (unit 5) :: Sigmoidal Float
 dt = constToSingleProp 0.005
 typ = ParticleType 0
 

@@ -17,8 +17,7 @@ import Data.Array.Accelerate as A
 import Hasdy.Vectors
 
 data LJ r = LJ {epsilon::Acc (A.Scalar r),
-                sigma::Acc (A.Scalar r),
-                rcut::Acc (A.Scalar r)}
+                sigma::Acc (A.Scalar r)}
 
 ljForce::(Elt r, IsFloating r)=>LJ r->Vec3 r->Vec3 r
 ljForce params r = map3 (prefactor*) r
