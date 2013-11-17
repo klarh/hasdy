@@ -90,6 +90,14 @@ unBundlePerParticle' typ pre = (arrays, PerParticleProp' new)
     new = M.fromList [(typ, vec)]
     (arrays, vec) = pre
 
+-- | Reduce a 'PerParticleProp' into a 'PerTypeProp' using a monoidal function
+reducePerParticle::Elt a=>(Exp a->Exp a->Exp a)->Exp a->PerParticleProp a->PerTypeProp a
+reducePerParticle f x0 = PerTypeProp . M.map (A.fold f x0) . unPerParticleProp
+
+-- | Count the number of particles of each type
+countPerParticle::Elt a=>PerParticleProp a->PerTypeProp Int
+countPerParticle = PerTypeProp . M.map (A.unit . A.size) . unPerParticleProp
+
 -- | Add two 'PerParticleProp' 'Vec3's, discarding values for types
 -- not in both 'PerParticleProp's.
 plusp3::(Elt a, IsNum a)=>PerParticleProp (Vec3' a)->PerParticleProp (Vec3' a)->
@@ -156,6 +164,9 @@ newtype PerTypeProp a =
 -- evaluated scalar quantities, one for each particle type.
 newtype PerTypeProp' a =
   PerTypeProp' {unPerTypeProp'::M.Map ParticleType (A.Scalar a)}
+
+reducePerType::Elt a=>(Exp a->Exp a->Exp a)->Exp a->PerTypeProp a->SingleProp a
+reducePerType f x0 = SingleProp . unit . M.foldr (f . the) x0 . unPerTypeProp
 
 -- | 'SingleProp' is a single symbolic scalar quantity.
 newtype SingleProp a = SingleProp {unSingleProp::Acc (A.Scalar a)}

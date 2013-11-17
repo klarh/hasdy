@@ -33,6 +33,7 @@ import Hasdy.Potentials.Sigmoidal
 import Hasdy.Spatial
 import Hasdy.Vectors
 import Hasdy.Dump.Pos
+import Hasdy.Thermo
 
 import Data.Array.Accelerate.CUDA
 
