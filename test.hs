@@ -15,11 +15,11 @@ import Control.Monad
 import Data.Array.Accelerate as A
 import Data.Map as M
 import Data.Monoid
-import Data.Text.IO (writeFile, appendFile)
 import Data.Text.Lazy (toStrict)
+import Data.Text.Lazy.IO (hPutStr)
 import Data.Text.Lazy.Builder (toLazyText)
 import System.Environment
-import System.IO (FilePath(..))
+import System.IO (FilePath(..), IOMode(..), Handle(..), openFile, hFlush)
 import System.Random (randomRs, mkStdGen)
 import Data.NumInstances
 import GHC.Float (double2Float)
@@ -37,7 +37,7 @@ import Hasdy.Dump.Pos
 import Data.Array.Accelerate.CUDA
 
 -- global constants
-scale = 2
+scale = 1.5
 n = 16
 v0 = 1e-1
 box = A.constant box'
@@ -58,15 +58,16 @@ timestep (pos, vel) = leapfrog dt masses forces (pos', vel)
     typ = ParticleType 0
 
 -- | several timesteps + dumping to file
-timestep'::(PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))->
+timestep'::Handle->(PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))->
            IO (PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))
-timestep' (positions, velocities) = do
+timestep' handle (positions, velocities) = do
   let posvelIn = bundlePerParticle' typ posIn velocities
       posIn = bundlePerParticle' typ () positions
       posvelOut = timestep'' posvelIn
       (pos'', velocities'') = unBundlePerParticle' typ posvelOut
       (_, positions'') = unBundlePerParticle' typ pos''
-  Data.Text.IO.appendFile "dump.pos" $ toStrict . toLazyText . posFrame box' $ unPerParticleProp' positions'' M.! typ
+  Data.Text.Lazy.IO.hPutStr handle $ toLazyText . posFrame box' $ unPerParticleProp' positions'' M.! typ
+  hFlush handle
   return (positions'', velocities'')
 
 -- | a group of timesteps glued together under accelerate's run1
@@ -81,11 +82,11 @@ timestep'' = run1 accTimestep
         posOut = bundlePerParticle typ (A.use ()) positions'
 
 -- | run n groups of timesteps
-multitimestep n (pos, vel) = do
-  (pos', vel') <- timestep' (pos, vel)
+multitimestep n handle (pos, vel) = do
+  (pos', vel') <- timestep' handle (pos, vel)
   if n == 0
     then return (pos', vel')
-    else multitimestep (n-1) (pos', vel')
+    else multitimestep (n-1) handle (pos', vel')
 
 main = do
   let grid idx = r `minus3` center
@@ -99,6 +100,7 @@ main = do
       velocities' = A.fromList (Z:.(n*n*n)) . triplify $ randomRs (negate v0, v0) (mkStdGen 5336) :: Vector (Vec3' Float)
       velocities = PerParticleProp $ M.fromList [(ParticleType 0, use velocities')] :: PerParticleProp (Vec3' Float)
   (n':_) <- getArgs
+  handle <- openFile "dump.pos" WriteMode
   let n = read n'::Int
-  multitimestep n (runPerParticle run positions, runPerParticle run velocities)
+  multitimestep n handle (runPerParticle run positions, runPerParticle run velocities)
   return ()
