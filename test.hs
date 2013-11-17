@@ -24,7 +24,7 @@ import Hasdy.Dump.Pos
 -- import Control.Monad.Par.Accelerate
 import Data.Array.Accelerate.CUDA
 
-scale = 2
+scale = 1.5
 n = 5
 box = A.constant box'
 box' = scale3' scale . pure3' $ Prelude.fromIntegral n
@@ -109,7 +109,7 @@ main = do
           offset = pure3 . A.constant $ (Prelude.fromIntegral n / 2 :: Float)
       positions' = run . A.flatten $ A.generate (A.constant $ (Z:.n:.n:.n) :: Exp DIM3) grid
       positions = PerParticleProp $ M.fromList [(ParticleType 0, use positions')]
-      velocities = perParticleMap (scale3 1e-5) positions
+      velocities = perParticleMap (scale3 1e-1) positions
   (n':_) <- getArgs
   let n = read n'::Int
   multitimestep n (runPerParticle run positions, runPerParticle run velocities)
