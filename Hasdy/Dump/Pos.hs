@@ -11,9 +11,10 @@ import Control.Applicative ((<$>))
 
 import Hasdy.Vectors(Vec3'(..))
 
-posFrame::A.Vector (Vec3' Float)->Builder
-posFrame positions = ("def A \"sphere 1 00cffe\"\n" `mappend`
-                      mconcat (posLine <$> A.toList positions) `mappend` "eof\n")
+posFrame::Vec3' Float->A.Vector (Vec3' Float)->Builder
+posFrame box positions = (build ("boxMatrix {} 0 0 0 {} 0 0 0 {}\n" :: Format) box `mappend`
+                          "def A \"sphere 1 00cffe\"\n" `mappend`
+                          mconcat (posLine <$> A.toList positions) `mappend` "eof\n")
 
 posLine::Vec3' Float->Builder
 posLine r = build ("A {} {} {}\n" :: Format) r

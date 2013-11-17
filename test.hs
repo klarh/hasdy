@@ -24,15 +24,20 @@ import Hasdy.Dump.Pos
 -- import Control.Monad.Par.Accelerate
 import Data.Array.Accelerate.CUDA
 
+scale = 2
+n = 5
+box = A.constant box'
+box' = scale3' scale . pure3' $ Prelude.fromIntegral n
 lj = LJ (unit 1) (unit 1) (unit 3) :: LJ Float
 dt = constToSingleProp 0.005
 typ = ParticleType 0
 
 timestep::(PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))->
           (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
-timestep (pos, vel) = leapfrog dt masses forces (pos, vel)
+timestep (pos, vel) = leapfrog dt masses forces (pos', vel)
   where
-    forces = foldNeighbors (makeRelative $ ljForce lj) plus3 (A.constant (0, 0, 0)) typ typ pos
+    pos' = perParticleMap (wrapBox box id) pos
+    forces = foldNeighbors (makeAbsolute . wrapBox box $ ljForce lj) plus3 (A.constant (0, 0, 0)) typ typ pos'
     masses = singleToParticleProp (constToSingleProp 1) pos
     typ = ParticleType 0
 
@@ -52,18 +57,18 @@ multitimestep n (pos, vel) = do
 
 timestep'::(PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))->IO (PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))
 timestep' (positions, velocities) = do
-  let accTimestep posvelIn = bundlePerParticle typ velOut positions'
+  let accTimestep posvelIn = bundlePerParticle typ posOut velocities'
         where
-          (velIn, positions) = unBundlePerParticle typ posvelIn
-          (_, velocities) = unBundlePerParticle typ velIn
+          (posIn, velocities) = unBundlePerParticle typ posvelIn
+          (_, positions) = unBundlePerParticle typ posIn
           (positions', velocities') = iterate timestep (positions, velocities) Prelude.!! 10 :: (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
-          velOut = bundlePerParticle typ (A.use ()) velocities'
-      posvelIn = bundlePerParticle' typ velIn positions
-      velIn = bundlePerParticle' typ () velocities
+          posOut = bundlePerParticle typ (A.use ()) positions'
+      posvelIn = bundlePerParticle' typ posIn velocities
+      posIn = bundlePerParticle' typ () positions
       posvelOut = run1 accTimestep posvelIn
-      (vel'', positions'') = unBundlePerParticle' typ posvelOut
-      (_, velocities'') = unBundlePerParticle' typ vel''
-  Data.Text.IO.appendFile "dump.pos" $ toStrict . toLazyText . posFrame $ unPerParticleProp' positions'' M.! typ
+      (pos'', velocities'') = unBundlePerParticle' typ posvelOut
+      (_, positions'') = unBundlePerParticle' typ pos''
+  Data.Text.IO.appendFile "dump.pos" $ toStrict . toLazyText . posFrame box' $ unPerParticleProp' positions'' M.! typ
   return (positions'', velocities'')
 
 -- timestep'::(PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))->IO (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
@@ -97,14 +102,14 @@ timestep' (positions, velocities) = do
 --     unpack arrs = let (pos, velocities')
 
 main = do
-  let grid idx = A.lift (scale*(A.fromIntegral x), scale*(A.fromIntegral y), scale*(A.fromIntegral z))
+  let grid idx = r `minus3` offset
         where
+          r = scale3 (A.constant scale) $ A.lift (A.fromIntegral x, A.fromIntegral y, A.fromIntegral z)
           (Z:.x:.y:.z) = A.unlift idx
-          scale = 1.7
-      n = 5
+          offset = pure3 . A.constant $ (Prelude.fromIntegral n / 2 :: Float)
       positions' = run . A.flatten $ A.generate (A.constant $ (Z:.n:.n:.n) :: Exp DIM3) grid
       positions = PerParticleProp $ M.fromList [(ParticleType 0, use positions')]
-      velocities = perParticleMap (scale3 0) positions
+      velocities = perParticleMap (scale3 1e-5) positions
   (n':_) <- getArgs
   let n = read n'::Int
   multitimestep n (runPerParticle run positions, runPerParticle run velocities)

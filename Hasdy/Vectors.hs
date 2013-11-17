@@ -96,7 +96,7 @@ fold4 f v = w `f` x `f` y `f` z
 pure4::Elt a=>Exp a->Vec4 a
 pure4 x = A.lift (x, x, x, x)
 
--- Elementwise Vec3' operations
+-- Elementwise Vec3 operations
 plus3::(Elt a, IsNum a)=>Vec3 a->Vec3 a->Vec3 a
 plus3 = Hasdy.Vectors.zipWith3 (+)
 minus3::(Elt a, IsNum a)=>Vec3 a->Vec3 a->Vec3 a
@@ -106,7 +106,18 @@ times3 = Hasdy.Vectors.zipWith3 (*)
 div3::(Elt a, IsFloating a)=>Vec3 a->Vec3 a->Vec3 a
 div3 = Hasdy.Vectors.zipWith3 (/)
 
+-- Elementwise Vec3' operations
+plus3'::(Elt a, IsNum a)=>Vec3' a->Vec3' a->Vec3' a
+plus3' = Hasdy.Vectors.zipWith3' (+)
+minus3'::(Elt a, IsNum a)=>Vec3' a->Vec3' a->Vec3' a
+minus3' = Hasdy.Vectors.zipWith3' (-)
+times3'::(Elt a, IsNum a)=>Vec3' a->Vec3' a->Vec3' a
+times3' = Hasdy.Vectors.zipWith3' (*)
+div3'::(Elt a, IsFloating a)=>Vec3' a->Vec3' a->Vec3' a
+div3' = Hasdy.Vectors.zipWith3' (/)
+
 scale3 s v = pure3 s `times3` v
+scale3' s v = pure3' s `times3'` v
 
 -- normalize3::(Elt a, IsFloating (a, a, a))=>Vec3 a->Vec3 a
 -- normalize3 v = v / pure3 (length3 v)
