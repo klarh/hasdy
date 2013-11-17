@@ -34,6 +34,7 @@ import Hasdy.Spatial
 import Hasdy.Vectors
 import Hasdy.Dump.Pos
 import Hasdy.Thermo
+import Hasdy.Thermostats
 
 import Data.Array.Accelerate.CUDA
 
@@ -51,9 +52,10 @@ typ = ParticleType 0
 -- | a single timestep in terms of 'PerParticleProp's
 timestep::(PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))->
           (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
-timestep (pos, vel) = leapfrog dt masses forces (pos', vel)
+timestep (pos, vel) = leapfrog dt masses forces (pos', vel')
   where
     pos' = perParticleMap (wrapBox box id) pos
+    vel' = rescale (constToSingleProp 1) masses vel
     forces = foldNeighbors (makeAbsolute . wrapBox box $ sigmoidalForce sig) plus3 (A.constant (0, 0, 0)) typ typ pos'
     masses = singleToParticleProp (constToSingleProp 1) pos
     typ = ParticleType 0
