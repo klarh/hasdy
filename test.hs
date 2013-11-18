@@ -24,6 +24,7 @@ import System.Random (randomRs, mkStdGen)
 import Data.NumInstances
 import GHC.Float (double2Float)
 
+import Data.Array.Accelerate.HasdyContrib
 import Hasdy.Types
 import Hasdy.Prop
 import Hasdy.Neighbor.Slow
@@ -36,7 +37,8 @@ import Hasdy.Dump.Pos
 import Hasdy.Thermo
 import Hasdy.Thermostats
 
-import Data.Array.Accelerate.CUDA
+-- import Data.Array.Accelerate.CUDA
+import Data.Array.Accelerate.Interpreter
 
 -- global constants
 scale = 1.5
