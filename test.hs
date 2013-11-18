@@ -37,8 +37,8 @@ import Hasdy.Dump.Pos
 import Hasdy.Thermo
 import Hasdy.Thermostats
 
--- import Data.Array.Accelerate.CUDA
-import Data.Array.Accelerate.Interpreter
+import Data.Array.Accelerate.CUDA
+-- import Data.Array.Accelerate.Interpreter
 
 -- global constants
 scale = 1.5
