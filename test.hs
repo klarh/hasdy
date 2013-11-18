@@ -36,6 +36,7 @@ import Hasdy.Vectors
 import Hasdy.Dump.Pos
 import Hasdy.Thermo
 import Hasdy.Thermostats
+import Hasdy.Utils
 
 import Data.Array.Accelerate.CUDA
 -- import Data.Array.Accelerate.Interpreter
