@@ -10,7 +10,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
--- {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, FlexibleContexts #-}
+{-# LANGUAGE TypeSynonymInstances, TypeOperators, FlexibleInstances, FlexibleContexts #-}
 module Hasdy.Vectors where
 
 import Data.Array.Accelerate (Acc, Exp)
@@ -139,14 +139,14 @@ dot3::(Elt a, IsNum a)=>Vec3 a->Vec3 a->Exp a
 dot3 v1 v2 = fold3 (+) $ v1 `times3` v2
 length3::(Elt a, IsFloating a)=>Vec3 a->Exp a
 length3 v = sqrt $ dot3 v v
--- mkDim3::(Vec3 Int)->Exp DIM3
--- mkDim3 v = A.lift $ (Z:. x:. y:. z)
---   where
---     (x, y, z) = A.unlift v :: (Exp Int, Exp Int, Exp Int)
--- unDim3::Exp DIM3->(Vec3 Int)
--- unDim3 v = A.lift $ (x, y, z)
---   where
---     (Z:. x:. y:. z) = A.unlift v :: (Z:. Exp Int:. Exp Int:. Exp Int)
+index3::Vec3 Int->Exp DIM3
+index3 v = A.lift $ (Z:. x:. y:. z)
+  where
+    (x, y, z) = A.unlift v :: (Exp Int, Exp Int, Exp Int)
+unindex3::Exp DIM3->Vec3 Int
+unindex3 v = A.lift $ (x, y, z)
+  where
+    (Z:. x:. y:. z) = A.unlift v :: (Z:. Exp Int:. Exp Int:. Exp Int)
 
 -- Elementwise Vec4' operations
 plus4::(Elt a, IsNum a)=>Vec4 a->Vec4 a->Vec4 a

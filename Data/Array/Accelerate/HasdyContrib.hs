@@ -23,7 +23,7 @@ repeat ns xs = gather idx xs
     size = index1 . the $ outputSize
     range = A.generate (A.shape ns) unindex1
     idx' = scatterIf starts ns (>* 0) (fill size 0) range
-    idx = A.scanl1 A.max idx'
+    idx = A.scanl1 max idx'
 
 -- | "Unfold" a list of initial values into segments
 --   unfoldSeg (+2) [100, 0, 200, 300] [3, 1, 0, 2] == [100, 102, 104, 0, 300, 302]
