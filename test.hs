@@ -49,7 +49,7 @@ n = 16
 v0 = 1e-1
 box = A.constant box'
 box' = scale3' scale . pure3' $ Prelude.fromIntegral n
-cell = constToSingleProp . pure3' $ 3
+cell = constToSingleProp . pure3' $ 6
 lj = LJ (unit 1) (unit 1) :: LJ Float
 sig = Sigmoidal (unit 1) (unit 1) (unit 5) :: Sigmoidal Float
 dt = constToSingleProp 0.005
@@ -88,9 +88,9 @@ timestep'' = run1 accTimestep
       where
         (posIn, velocities) = unBundlePerParticle typ posvelIn
         (_, positions) = unBundlePerParticle typ posIn
-        (nlist, oldIdx) = buildNList True cell (constToSingleProp box') positions
-        positions' = gatherPerParticle typ oldIdx positions
-        velocities' = gatherPerParticle typ oldIdx velocities
+        (nlist, oldIdx) = buildNList True cell (constToSingleProp box') (perParticleMap (wrapBox box id) positions)
+        positions' = gatherPerParticle oldIdx positions
+        velocities' = gatherPerParticle oldIdx velocities
         (positions'', velocities'') = Prelude.iterate (timestep nlist) (positions', velocities') Prelude.!! 10
                                     :: (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
         posOut = bundlePerParticle typ (A.use ()) positions''

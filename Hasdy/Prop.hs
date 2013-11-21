@@ -92,10 +92,8 @@ unBundlePerParticle' typ pre = (arrays, PerParticleProp' new)
 
 -- | Rearranges the elements of a 'PerParticleProp' according to an
 -- index mapping.
-gatherPerParticle::(Elt a)=>ParticleType->PerParticleProp Int->PerParticleProp a->PerParticleProp a
-gatherPerParticle typ idx = PerParticleProp . M.adjust (A.gather idx') typ . unPerParticleProp
-  where
-    idx' = (unPerParticleProp idx) M.! typ
+gatherPerParticle::(Elt a)=>PerParticleProp Int->PerParticleProp a->PerParticleProp a
+gatherPerParticle idx = PerParticleProp . M.intersectionWith A.gather (unPerParticleProp idx) . unPerParticleProp
 
 -- | Reduce a 'PerParticleProp' into a 'PerTypeProp' using a monoidal function
 reducePerParticle::Elt a=>(Exp a->Exp a->Exp a)->Exp a->PerParticleProp a->PerTypeProp a
