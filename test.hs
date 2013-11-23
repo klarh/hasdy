@@ -29,6 +29,7 @@ import Hasdy.Types
 import Hasdy.Prop
 import Hasdy.Neighbor.Slow as Slow
 import Hasdy.Integrate.Leapfrog
+import Hasdy.Integrate.VelVerlet
 import Hasdy.Potentials.LJ
 import Hasdy.Potentials.Sigmoidal
 import Hasdy.Spatial
@@ -44,63 +45,68 @@ import Data.Array.Accelerate.CUDA
 --import Data.Array.Accelerate.Interpreter
 
 -- global constants
-scale = 3.2
-n = 6
-v0 = 1e-2
+scale = 2
+n = 10
+v0 = 1e-1
 box = A.constant box'
 box' = scale3' scale . pure3' $ Prelude.fromIntegral n
-cell = constToSingleProp . pure3' $ 3.1
+cell = constToSingleProp . pure3' $ 3
 lj = LJ (unit 1) (unit 1) :: LJ Float
 sig = Sigmoidal (unit 1) (unit 1) (unit 3) :: Sigmoidal Float
-dt = constToSingleProp 0.005
+dt = constToSingleProp 0.0005
 typ = ParticleType 0
 
 -- | a single timestep in terms of 'PerParticleProp's
-timestep::NList->(PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))->
-          (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
-timestep nlist (pos, vel) = leapfrog dt masses forces (pos', vel')
+timestep::NList->(PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))->
+          (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
+timestep nlist (pos, vel, acc) = velVerlet dt masses forces (pos', vel, acc)
   where
     pos' = perParticleMap (wrapBox box id) pos
-    vel' = rescale (constToSingleProp 1) masses vel
---    forces = Slow.foldNeighbors (makeAbsolute . wrapBox box $ ljForce lj) plus3 (A.constant (0, 0, 0)) typ typ pos'
-    forces = Fast.foldNeighbors (makeAbsolute . wrapBox box $ ljForce lj) plus3 (A.constant (0, 0, 0)) nlist typ typ pos' pos'
+    vel' = rescale (constToSingleProp 0.1) masses vel
+    forces = Slow.foldNeighbors (makeAbsolute . cutoff (A.constant (0, 0, 0)) (3**2) . wrapBox box $ ljForce lj) plus3 (A.constant (0, 0, 0)) typ typ pos'
+--    forces = Fast.foldNeighbors (makeAbsolute . cutoff (A.constant (0, 0, 0)) (3**2) . wrapBox box $ ljForce lj) plus3 (A.constant (0, 0, 0)) nlist typ typ pos' pos'
     masses = singleToParticleProp (constToSingleProp 1) pos
     typ = ParticleType 0
 
 -- | several timesteps + dumping to file
-timestep'::Handle->(PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))->
-           IO (PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))
-timestep' handle (positions, velocities) = do
-  let posvelIn = bundlePerParticle' typ posIn velocities
+timestep'::Handle->(PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))->
+           IO (PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))
+timestep' handle (positions, velocities, accelerations) = do
+  let posvelaccIn = bundlePerParticle' typ posvelIn accelerations
+      posvelIn = bundlePerParticle' typ posIn velocities
       posIn = bundlePerParticle' typ () positions
-      posvelOut = timestep'' posvelIn
+      posvelaccOut = timestep'' posvelaccIn
+      (posvelOut, accelerations'') = unBundlePerParticle' typ posvelaccOut
       (pos'', velocities'') = unBundlePerParticle' typ posvelOut
       (_, positions'') = unBundlePerParticle' typ pos''
 
   Data.Text.Lazy.IO.hPutStr handle $ toLazyText . posFrame box' $ unPerParticleProp' positions'' M.! typ
   hFlush handle
-  return (positions'', velocities'')
+  return (positions'', velocities'', accelerations'')
 
 -- | a group of timesteps glued together under accelerate's run1
-timestep'' = run1 accTimestep
+timestep'' = run1 $ Prelude.foldr1 (>->) . Prelude.take 10 . Prelude.repeat $ accTimestep
   where
-    accTimestep posvelIn = bundlePerParticle typ posOut velocities''
+    accTimestep posvelaccIn = bundlePerParticle typ posvelOut accelerations''
       where
+        (posvelIn, accelerations) = unBundlePerParticle typ posvelaccIn
         (posIn, velocities) = unBundlePerParticle typ posvelIn
         (_, positions) = unBundlePerParticle typ posIn
         (nlist, oldIdx) = buildNList True cell (constToSingleProp box') (perParticleMap (wrapBox box id) positions)
         positions' = gatherPerParticle oldIdx positions
         velocities' = gatherPerParticle oldIdx velocities
-        (positions'', velocities'') = Prelude.iterate (timestep nlist) (positions', velocities') Prelude.!! 2
-                                    :: (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
+        accelerations' = gatherPerParticle oldIdx accelerations
+        (positions'', velocities'', accelerations'') = Prelude.iterate (timestep nlist) (positions', velocities', accelerations') Prelude.!! 10
+                                    :: (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
         posOut = bundlePerParticle typ (A.use ()) positions''
+        posvelOut = bundlePerParticle typ posOut velocities''
 
 -- | run n groups of timesteps
-multitimestep n handle (pos, vel) = do
-  (pos', vel') <- timestep' handle (pos, vel)
+multitimestep n handle (pos, vel, acc) = do
+  (pos', vel', acc') <- timestep' handle (pos, vel, acc)
   if n <= 0
-    then return (pos', vel')
-    else multitimestep (n-1) handle (pos', vel')
+    then return (pos', vel', acc')
+    else multitimestep (n-1) handle (pos', vel', acc')
 
 main = do
   let grid idx = r `minus3` center
@@ -113,12 +119,13 @@ main = do
       triplify (x:y:z:rest) = (x, y, z):(triplify rest)
       velocities' = A.fromList (Z:.(n*n*n)) . triplify $ randomRs (negate v0, v0) (mkStdGen 5337) :: Vector (Vec3' Float)
       velocities = PerParticleProp $ M.fromList [(ParticleType 0, use velocities')] :: PerParticleProp (Vec3' Float)
-      vel' = rescale (constToSingleProp 1) masses velocities
+      accelerations = perParticleMap (scale3 0) velocities
+      vel' = rescale (constToSingleProp 1e-3) masses velocities
       masses = singleToParticleProp (constToSingleProp 1) positions
   (n':_) <- getArgs
   handle <- openFile "dump.pos" WriteMode
   let n = read n'::Int
-  (positions, velocities) <- multitimestep n handle (runPerParticle run positions, runPerParticle run velocities)
+  (positions, velocities, accelerations) <- multitimestep n handle (runPerParticle run positions, runPerParticle run velocities, runPerParticle run accelerations)
 
   let --positions' = A.use . A.fromList (Z:.27) $ [(x, y, z) | x <- [negate 0.5, 0.25, 1.5], y <- [negate 0.5, 0.25, 1.25], z <- [negate 0.5, 0.5, 1.5]]
       --positions = A.map (plus3 $ pure3 (negate 4)) positions'
@@ -128,12 +135,12 @@ main = do
       ((NList' idxI idxJ segments), oldIdx) = buildNList' True cell (SingleProp . unit $ box) (use . (flip (M.!) $ typ) . unPerParticleProp' $ positions)
 --      blah = buildNList'' True cell box positions
 --  print . run $ positions
-  print . run $ A.zip idxI idxJ
-  print . run $ idxI
-  print . run $ idxJ
-  print . run $ segments
+  print . run . A.unit . A.shape $ A.zip idxI idxJ
+  print . run . A.unit . A.shape $ idxI
+  print . run . A.unit . A.shape $ idxJ
+  print . run . A.unit . A.shape $ segments
   print . run $ A.sum segments
-  print . run $ oldIdx
+
 --  print . run $ A.gather oldIdx positions
 --  print . run $ blah
 --  print . run $ A.sum blah

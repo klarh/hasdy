@@ -14,7 +14,7 @@ module Hasdy.Spatial where
 
 import Data.Array.Accelerate as A
 
-import Hasdy.Vectors (Vec3, minus3, zipWith3)
+import Hasdy.Vectors (Vec3, dot3, minus3, zipWith3)
 
 -- | Transform an operation that transforms a function of a relative
 -- 'Vec3' into one that works on two absolute 'Vec3's.
@@ -28,3 +28,6 @@ wrapBox box f = \r -> f (Hasdy.Vectors.zipWith3 wrap box r)
   where
     wrap box x = (x >* (half box))? (x - box, (x <* (negate . half $ box))? (x + box, x))
     half box = 0.5*box
+
+cutoff::(Elt a, Elt b, IsNum a)=>Exp b->Exp a->(Vec3 a->Exp b)->Vec3 a->Exp b
+cutoff x0 rmaxsq f r = dot3 r r <* rmaxsq? (f r, x0)

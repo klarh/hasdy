@@ -22,9 +22,12 @@ data LJ r = LJ {epsilon::Acc (A.Scalar r),
 ljForce::(Elt r, IsFloating r)=>LJ r->Vec3 r->Vec3 r
 ljForce params r = map3 (prefactor*) r
   where
-    prefactor = 24*epsilon'*sig6/r22/r22*(1 - 2*sig6/r22/r2)
+    -- prefactor = 24*epsilon'*sig6/r22/r22*(1 - 2*sig6/r22/r2)
     r2 = dot3 r r
-    r22 = r2*r2
+    r4 = r2*r2
+    r8 = r4*r4
+    r6 = r4*r2
+    prefactor = 48*epsilon'*sig6*(2*sig6/(r8*r6) - 1/r8)
     sig3 = sigma'*sigma'*sigma'
     sig6 = sig3*sig3
     sigma' = the . sigma $ params

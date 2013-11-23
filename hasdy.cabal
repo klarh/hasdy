@@ -15,6 +15,36 @@ build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.10
 
+library
+  build-depends:       base >=4.6 && <4.7,
+                       accelerate >= 0.12,
+                       containers >= 0.3,
+                       NumInstances >= 1.3,
+                       text >= 0.11,
+                       text-format >= 0.3,
+                       accelerate-cuda >= 0.12,
+                       random >= 1
+
+  exposed-modules:
+        Data.Array.Accelerate.HasdyContrib
+        Hasdy.Dump.Pos
+        Hasdy.Integrate.Leapfrog
+        Hasdy.Integrate.VelVerlet
+        Hasdy.Neighbor.Fast
+        Hasdy.Neighbor.Slow
+        Hasdy.Potentials.LJ
+        Hasdy.Potentials.Sigmoidal
+        Hasdy.Prop
+        Hasdy.Spatial
+        Hasdy.Thermo
+        Hasdy.Thermostats
+        Hasdy.Types
+        Hasdy.Utils
+        Hasdy.Utils.Sort
+        Hasdy.Vectors
+
+  default-language:    Haskell2010
+
 executable hasdy
   main-is: test.hs
   -- other-modules:
@@ -26,7 +56,8 @@ executable hasdy
                        text >= 0.11,
                        text-format >= 0.3,
                        accelerate-cuda >= 0.12,
-                       random >= 1
+                       random >= 1,
+                       hasdy >= 0.1
   -- hs-source-dirs:
   default-language:    Haskell2010
   ghc-options:         -threaded

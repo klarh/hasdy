@@ -31,7 +31,7 @@ zOrder::Vec3 Int->Exp Int
 -- zOrder idx = interleave3 z y x
 --   where
 --     (x, y, z) = A.unlift idx
-zOrder idx = (x*(2^20) + y*(2^10) + z)
+zOrder idx = (x*(2^18) + y*(2^9) + z)
   where
     (x, y, z) = A.unlift idx
 
