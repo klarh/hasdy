@@ -28,7 +28,10 @@ data NList' = NList' {nlIdxi :: Acc (A.Vector Int),
                       nlSegments :: Acc (A.Vector Int)}
 
 zOrder::Vec3 Int->Exp Int
-zOrder idx = interleave3 x y z
+-- zOrder idx = interleave3 z y x
+--   where
+--     (x, y, z) = A.unlift idx
+zOrder idx = (x*(2^20) + y*(2^10) + z)
   where
     (x, y, z) = A.unlift idx
 
@@ -50,13 +53,14 @@ buildNList' skipSelf cell box positions = (NList' idxI idxJ segments, oldIndices
     box' = the . unSingleProp $ box
 
     -- Vector and components for box size in cells
-    dim = map3 A.ceiling $ box' `div3` cell'
+    dim = map3 A.floor $ box' `div3` cell'
+    cell'' = box' `div3` map3 A.fromIntegral dim
     (dim0, dim1, dim2) = A.unlift dim :: Vec3' (Exp Int)
     gridSize = fold3 (*) dim
 
     -- Assign each particle to a cell based on its position; len == numParticles
     cells::Acc (A.Vector (Vec3' Int))
-    cells = A.map (map3 A.floor . (`div3` cell') . (plus3 $ scale3 0.5 box')) positions
+    cells = A.map (map3 A.floor . (`div3` cell'') . (`plus3` scale3 0.5 box')) positions
 
     -- Sort particles based on the z-order of cell index; len == numParticles
     unsortedZOrders = A.map zOrder cells
@@ -67,7 +71,7 @@ buildNList' skipSelf cell box positions = (NList' idxI idxJ segments, oldIndices
     -- Histogram the cells to calculate the number of particles in each cell; len == numCells
     cellSizes::Acc (A.Vector Int)
     cellSizes = A.permute (+) (A.fill (A.lift $ Z:.gridSize) 0)
-                (A.index1 . dot3 cumulativeGridSize . (cells A.!)) (A.fill (A.shape cellZOrders) 1)
+                (A.index1 . dot3 cumulativeGridSize . (cells A.!)) (A.fill (A.shape cells) 1)
 
     -- Beginning indices for each cell; len == numCells
     cellStarts = A.prescanl (+) 0 cellSizes
@@ -91,7 +95,7 @@ buildNList' skipSelf cell box positions = (NList' idxI idxJ segments, oldIndices
     particleExtendedSizes = A.gather particleExtendedCells cellSizes
 
     -- intermediate results
-    idxI' = HC.repeat segments' (A.generate (A.shape oldIndices) unindex1)
+    idxI' = HC.repeat segments' (A.generate (A.shape positions) unindex1)
     idxJ' = unfoldSeg (+1) particleExtendedSizes particleExtendedStarts
     segments' = A.fold (+) 0 $ A.reshape (A.lift $ Z:.A.size particleCells:.(27::Int)) particleExtendedSizes
 

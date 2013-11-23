@@ -17,7 +17,7 @@ import Data.Bits ((.|.))
 import Prelude as P
 import Data.Array.Accelerate as A
 
--- | Interleave the lower 32 bits of three Int values
+-- | Interleave the lower 10 bits of three Int values
 interleave3::Exp Int->Exp Int->Exp Int->Exp Int
 interleave3 x y z = P.foldr (.|.) 0 shifted
   where
