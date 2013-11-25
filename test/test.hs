@@ -59,11 +59,11 @@ typ = ParticleType 0
 -- | a single timestep in terms of 'PerParticleProp's
 timestep::NList->(PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))->
           (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
-timestep nlist (pos, vel, acc) = velVerlet dt masses forces (pos', vel, acc)
+timestep nlist (pos, vel, acc) = velVerlet dt masses forceCalc (pos', vel, acc)
   where
     pos' = perParticleMap (wrapBox box id) pos
     vel' = rescale (constToSingleProp 0.1) masses vel
-    forces = Slow.foldNeighbors (makeAbsolute . cutoff (A.constant (0, 0, 0)) (3**2) . wrapBox box $ ljForce lj) plus3 (A.constant (0, 0, 0)) typ typ pos'
+    forceCalc = Slow.foldNeighbors (makeAbsolute . cutoff (A.constant (0, 0, 0)) (3**2) . wrapBox box $ ljForce lj) plus3 (A.constant (0, 0, 0)) typ typ
 --    forces = Fast.foldNeighbors (makeAbsolute . cutoff (A.constant (0, 0, 0)) (3**2) . wrapBox box $ ljForce lj) plus3 (A.constant (0, 0, 0)) nlist typ typ pos' pos'
     masses = singleToParticleProp (constToSingleProp 1) pos
     typ = ParticleType 0

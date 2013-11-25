@@ -17,15 +17,15 @@ import Hasdy.Prop (PerParticleProp, SingleProp, unSingleProp, singleToParticlePr
                    perParticleZipWith, plusp3, plusp3')
 import Hasdy.Vectors (Vec3', scale3)
 
-velVerlet::(Elt r, IsFloating r, IsNum r)=>SingleProp r->PerParticleProp r->
-          PerParticleProp (Vec3' r)->
+velVerlet::(Elt r, IsFloating r, IsNum r)=>SingleProp r->PerParticleProp r->(PerParticleProp (Vec3' r)->PerParticleProp (Vec3' r))->
           (PerParticleProp (Vec3' r), PerParticleProp (Vec3' r), PerParticleProp (Vec3' r))->
           (PerParticleProp (Vec3' r), PerParticleProp (Vec3' r), PerParticleProp (Vec3' r))
-velVerlet dt masses forces (positions, velocities, accelerations) = (positions', velocities', accelerations')
+velVerlet dt masses forceComp (positions, velocities, accelerations) = (positions', velocities', accelerations')
   where
     dt' = the . unSingleProp $ dt
+    positions' = positions `plusp3'` perParticleMap (scale3 dt') velocities `plusp3'`
+                 perParticleMap (scale3 ((A.constant 0.5)*dt'*dt')) accelerations
+    forces = forceComp positions'
     accelerations' = perParticleZipWith scale3 (perParticleMap recip masses) forces
     meanAccelerations = perParticleMap (scale3 0.5) $ accelerations `plusp3` accelerations'
     velocities' = velocities `plusp3'` perParticleMap (scale3 dt') meanAccelerations
-    positions' = positions `plusp3'` perParticleMap (scale3 dt') velocities `plusp3'`
-                 perParticleMap (scale3 ((A.constant 0.5)*dt'*dt')) accelerations
