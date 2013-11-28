@@ -77,7 +77,7 @@ buildNList' skipSelf cell box positions = (NList' idxI idxJ segments, oldIndices
     cellStarts = A.prescanl (+) 0 cellSizes
 
     -- vector to dot with to convert to a flat index in the 3D grid
-    cumulativeGridSize = A.lift (dim1*dim2, dim1, 1::Exp Int) :: Vec3 Int
+    cumulativeGridSize = A.lift (dim1*dim2, dim2, 1::Exp Int) :: Vec3 Int
 
     -- Cells and cell indices per-particle
     particleCells = A.gather oldIndices cells
