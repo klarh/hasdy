@@ -53,7 +53,7 @@ box' = scale3' scale . pure3' $ Prelude.fromIntegral n
 cell = constToSingleProp . pure3' $ 3
 lj = LJ (unit 1) (unit 1) :: LJ Float
 sig = Sigmoidal (unit 1) (unit 1) (unit 3) :: Sigmoidal Float
-dt = constToSingleProp 0.0005
+dt = constToSingleProp 0.005
 typ = ParticleType 0
 
 -- | a single timestep in terms of 'PerParticleProp's
