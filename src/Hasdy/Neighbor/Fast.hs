@@ -60,7 +60,7 @@ buildNList' skipSelf cell box positions = (NList' idxI idxJ segments, oldIndices
 
     -- Assign each particle to a cell based on its position; len == numParticles
     cells::Acc (A.Vector (Vec3' Int))
-    cells = A.map (map3 A.floor . (`div3` cell'') . (`plus3` scale3 0.5 box')) positions
+    cells = A.map (map3 A.truncate . (`div3` cell'') . (`plus3` scale3 0.5 box')) positions
 
     -- Sort particles based on the z-order of cell index; len == numParticles
     unsortedZOrders = A.map zOrder cells

@@ -59,12 +59,12 @@ typ = ParticleType 0
 -- | a single timestep in terms of 'PerParticleProp's
 timestep::NList->(PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))->
           (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
-timestep nlist (pos, vel, acc) = velVerlet dt masses forceCalc (pos', vel, acc)
+timestep nlist (pos, vel, acc) = velVerlet dt masses forceCalc (pos', vel', acc)
   where
     pos' = perParticleMap (wrapBox box id) pos
-    vel' = rescale (constToSingleProp 0.1) masses vel
-    forceCalc = Slow.foldNeighbors (makeAbsolute . cutoff (A.constant (0, 0, 0)) (3**2) . wrapBox box $ ljForce lj) plus3 (A.constant (0, 0, 0)) typ typ
---    forces = Fast.foldNeighbors (makeAbsolute . cutoff (A.constant (0, 0, 0)) (3**2) . wrapBox box $ ljForce lj) plus3 (A.constant (0, 0, 0)) nlist typ typ pos' pos'
+    vel' = rescale (constToSingleProp 1) masses vel
+--    forceCalc p = Slow.foldNeighbors (makeAbsolute . wrapBox box . cutoff (A.constant (0, 0, 0)) (3**2) $ ljForce lj) plus3 (A.constant (0, 0, 0)) typ typ p p
+    forceCalc p = Fast.foldNeighbors (makeAbsolute . wrapBox box . cutoff (A.constant (0, 0, 0)) (3**2) $ sigmoidalForce sig) plus3 (A.constant (0, 0, 0)) nlist typ typ p p
     masses = singleToParticleProp (constToSingleProp 1) pos
     typ = ParticleType 0
 
@@ -85,7 +85,7 @@ timestep' handle (positions, velocities, accelerations) = do
   return (positions'', velocities'', accelerations'')
 
 -- | a group of timesteps glued together under accelerate's run1
-timestep'' = run1 $ Prelude.foldr1 (>->) . Prelude.take 10 . Prelude.repeat $ accTimestep
+timestep'' = run1 $ Prelude.foldr1 (>->) . Prelude.take 1 . Prelude.repeat $ accTimestep
   where
     accTimestep posvelaccIn = bundlePerParticle typ posvelOut accelerations''
       where
@@ -96,7 +96,7 @@ timestep'' = run1 $ Prelude.foldr1 (>->) . Prelude.take 10 . Prelude.repeat $ ac
         positions' = gatherPerParticle oldIdx positions
         velocities' = gatherPerParticle oldIdx velocities
         accelerations' = gatherPerParticle oldIdx accelerations
-        (positions'', velocities'', accelerations'') = Prelude.iterate (timestep nlist) (positions', velocities', accelerations') Prelude.!! 10
+        (positions'', velocities'', accelerations'') = Prelude.iterate (timestep nlist) (positions', velocities', accelerations') Prelude.!! 1
                                     :: (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
         posOut = bundlePerParticle typ (A.use ()) positions''
         posvelOut = bundlePerParticle typ posOut velocities''
