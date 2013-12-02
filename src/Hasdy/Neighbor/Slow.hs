@@ -19,10 +19,10 @@ import Hasdy.Prop (PerParticleProp(..), unPerParticleProp)
 import Hasdy.Types (ParticleType)
 
 -- | N^2 naive neighbor calculation
-foldNeighbors::(Elt a, Elt b)=>(Exp a->Exp a->Exp b)->
-                   (Exp b->Exp b->Exp b)->Exp b->ParticleType->ParticleType->
-                   PerParticleProp a->PerParticleProp b
-foldNeighbors f combx x0 typeA typeB prop
+foldNeighbors::(Elt a, Elt b, Elt c)=>(Exp a->Exp b->Exp c)->
+                   (Exp c->Exp c->Exp c)->Exp c->ParticleType->ParticleType->
+                   PerParticleProp a->PerParticleProp b->PerParticleProp c
+foldNeighbors f combx x0 typeA typeB propA propB
   | typeA == typeB = PerParticleProp $ M.fromList [(typeA, xAA)]
   | otherwise = PerParticleProp $ M.fromList [(typeA, xAB), (typeB, xBA)]
   where
@@ -32,17 +32,19 @@ foldNeighbors f combx x0 typeA typeB prop
     xAA = A.fold combx x0 xAA'
 
     -- Individual terms of AB and BA interactions
-    xAB' = A.zipWith f propsA propsB
-    xBA' = A.transpose xAB'
-    xAA' = A.backpermute (nonDiagonalShape propsA') nonDiagonalIdx xAB'
+    xAB' = zipWithPairs f (propA' M.! typeA) (propB' M.! typeB)
+    xBA' = zipWithPairs f (propA' M.! typeB) (propB' M.! typeA)
+    xAA' = A.backpermute (nonDiagonalShape $ propA' M.! typeA) nonDiagonalIdx xAB'
 
-    -- 2D property arrays for particles A and B
-    propsA = A.replicate (A.lift $ Z:.(A.size propsB'):.All) propsA'
-    propsB = A.replicate (A.lift $ Z:.All:.(A.size propsA')) propsB'
+    -- Remove one layer of wrapping for convenience
+    propA' = unPerParticleProp $ propA
+    propB' = unPerParticleProp $ propB
 
-    -- 1D property arrays for particles A and B
-    propsA' = (unPerParticleProp $ prop) M.! typeA
-    propsB' = (unPerParticleProp $ prop) M.! typeB
+    -- Apply a function to all pairs of elements in two vectors
+    zipWithPairs f x y = A.zipWith f x' y'
+      where
+        x' = A.replicate (A.lift $ Z:.(A.size y):.All) x
+        y' = A.replicate (A.lift $ Z:.All:.(A.size x)) y
 
     -- Tricks for off-diagonal indices for A-A self-interactions
     nonDiagonalShape::Elt a=>Acc (A.Vector a)->Exp DIM2
