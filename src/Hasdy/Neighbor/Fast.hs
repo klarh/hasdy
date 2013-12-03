@@ -96,7 +96,7 @@ buildNList' skipSelf cell box positions = (NList' idxI idxJ segments, oldIndices
 
     -- intermediate results
     idxI' = HC.repeat segments' (A.generate (A.shape positions) unindex1)
-    idxJ' = unfoldSeg (+1) particleExtendedSizes particleExtendedStarts
+    idxJ' = unfoldSeg (\x y -> 1 + x + y) 0 particleExtendedSizes particleExtendedStarts
     segments' = A.fold (+) 0 $ A.reshape (A.lift $ Z:.A.size particleCells:.(27::Int)) particleExtendedSizes
 
     -- final results

@@ -46,7 +46,7 @@ import Data.Array.Accelerate.CUDA
 
 -- global constants
 scale = 2
-n = 10
+n = 8
 v0 = 1e-1
 box = A.constant box'
 box' = scale3' scale . pure3' $ Prelude.fromIntegral n
@@ -105,7 +105,7 @@ timestep'' = run1 $ Prelude.foldr1 (>->) . Prelude.take 1 . Prelude.repeat $ acc
 multitimestep n handle (pos, vel, acc) = do
   (pos', vel', acc') <- timestep' handle (pos, vel, acc)
   if n <= 0
-    then return (pos', vel', acc')
+    then return (pos, vel, acc)
     else multitimestep (n-1) handle (pos', vel', acc')
 
 main = do
@@ -135,11 +135,15 @@ main = do
       ((NList' idxI idxJ segments), oldIdx) = buildNList' True cell (SingleProp . unit $ box) (use . (flip (M.!) $ typ) . unPerParticleProp' $ positions)
 --      blah = buildNList'' True cell box positions
 --  print . run $ positions
-  print . run . A.unit . A.shape $ A.zip idxI idxJ
   print . run . A.unit . A.shape $ idxI
   print . run . A.unit . A.shape $ idxJ
   print . run . A.unit . A.shape $ segments
   print . run $ A.sum segments
+  print . Prelude.take 10 . A.toList . (flip (M.!) $ typ) . unPerParticleProp' $ positions
+
+  -- print . run $ idxI
+  -- print . run $ idxJ
+  -- print . run $ segments
 
 --  print . run $ A.gather oldIdx positions
 --  print . run $ blah

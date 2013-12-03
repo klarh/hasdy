@@ -26,11 +26,11 @@ repeat ns xs = gather idx xs
     idx = A.scanl1 max idx'
 
 -- | "Unfold" a list of initial values into segments
---   unfoldSeg (+2) [3, 1, 0, 2] [100, 0, 200, 300] == [100, 102, 104, 0, 300, 302]
-unfoldSeg::Elt a=>(Exp a->Exp a)->Acc (A.Vector Int)->Acc (A.Vector a)->Acc (A.Vector a)
-unfoldSeg f ns xs = scanl1Seg (\x _ -> f x) scattered ns
+--   unfoldSeg (\x y -> x + y + 2) 0 [3, 1, 0, 2] [100, 0, 200, 300] == [100, 102, 104, 0, 300, 302]
+unfoldSeg::Elt a=>(Exp a->Exp a->Exp a)->Exp a->Acc (A.Vector Int)->Acc (A.Vector a)->Acc (A.Vector a)
+unfoldSeg f x0 ns xs = scanl1Seg f scattered ns
   where
     (starts, outputSize) = scanl' (+) 0 ns
     size = index1 . the $ outputSize
-    blank = fill size (xs A.!! 0)
+    blank = fill size x0
     scattered = scatterIf starts ns (>* 0) blank xs

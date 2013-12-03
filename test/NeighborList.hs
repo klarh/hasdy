@@ -14,7 +14,7 @@ import Prelude as P
 import Control.Applicative ((<$>))
 import qualified Data.Set as Set
 import Data.Array.Accelerate as A
-import Data.Array.Accelerate.Interpreter
+import Data.Array.Accelerate.CUDA
 import Distribution.TestSuite.QuickCheck
 import Test.QuickCheck
 

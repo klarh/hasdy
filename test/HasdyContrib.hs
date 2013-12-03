@@ -14,7 +14,7 @@
 
 import Prelude as P
 import Data.Array.Accelerate as A
-import Data.Array.Accelerate.Interpreter
+import Data.Array.Accelerate.CUDA
 import Distribution.TestSuite.QuickCheck
 import Test.QuickCheck
 import Data.Array.Accelerate.HasdyContrib as HC
@@ -40,7 +40,7 @@ prop_unfold_size::[Int]->Bool
 prop_unfold_size xs = unfoldedSize == P.sum xs
   where
     xs' = A.fromList (Z:.length xs) xs
-    unfoldedSize = arraySize . arrayShape $ run1 (\x -> HC.unfoldSeg (+3) x x) xs'
+    unfoldedSize = arraySize . arrayShape $ run1 (\x -> HC.unfoldSeg (\x y -> x + y + 3) 0 x x) xs'
 
 prop_unfold_size' = forAll (listOf $ choose (0, 129)) prop_unfold_size
 
@@ -48,7 +48,7 @@ prop_unfold_values::[Int]->Bool
 prop_unfold_values xs = unfoldedValues == unfoldedValues'
   where
     xs' = A.fromList (Z:.length xs) xs
-    unfoldedValues = A.toList $ run1 (\x -> HC.unfoldSeg (+3) x x) xs'
+    unfoldedValues = A.toList $ run1 (\x -> HC.unfoldSeg (\x y -> x + y + 3) 0 x x) xs'
     unfoldedValues' = P.concatMap (\x -> P.take x . P.iterate (+3) $ x) xs
 
 prop_unfold_values' = forAll (listOf $ choose (0, 129)) prop_unfold_values
