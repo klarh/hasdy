@@ -126,38 +126,9 @@ main = do
   (n':_) <- getArgs
   handle <- openFile "dump.pos" WriteMode
   let n = read n'::Int
-  (positions, velocities, accelerations) <- multitimestep n handle (runPerParticle run positions, runPerParticle run velocities, runPerParticle run accelerations)
-
-  let --positions' = A.use . A.fromList (Z:.27) $ [(x, y, z) | x <- [negate 0.5, 0.25, 1.5], y <- [negate 0.5, 0.25, 1.25], z <- [negate 0.5, 0.5, 1.5]]
-      --positions = A.map (plus3 $ pure3 (negate 4)) positions'
-      --positions = A.use . A.fromList (Z:.2) $ [(0.01, 0.01, 0.01),  (4.5, 0, 0.5)] :: Acc (A.Vector (Vec3' Float))
-      --cell = constToSingleProp (0.999, 0.999, 0.999) :: SingleProp (Vec3' Float)
-      --box = constToSingleProp (10, 10, 10) :: SingleProp (Vec3' Float)
-      ((NList' idxI idxJ segments), oldIdx) = buildNList' True cell (SingleProp . unit $ box) (use . (flip (M.!) $ typ) . unPerParticleProp' $ positions)
-      (nlist, _) = buildNList True cell (constToSingleProp box') (perParticleMap (wrapBox box id) $ usePerParticle positions)
-      forces = (unPerParticleProp $ Fast.foldNeighbors (makeAbsolute . wrapBox box . cutoff (A.constant (0, 0, 0)) (3**2) $ sigmoidalForce sig) plus3 (A.constant (0, 0, 0)) nlist typ typ (usePerParticle positions) (usePerParticle positions)) M.! typ
---      blah = buildNList'' True cell box positions
---  print . run $ positions
---  print . run $ forces
-  print . run . A.unit . A.shape $ idxI
-  print . run . A.unit . A.shape $ idxJ
-  print . run . A.unit . A.shape $ segments
-  print . run $ A.sum segments
---  print . Prelude.take 10 . A.toList . (flip (M.!) $ typ) . unPerParticleProp' $ positions
-
-  -- print . run $ idxI
-  -- print . run $ idxJ
-  -- print . run $ segments
-
---  print . run $ A.gather oldIdx positions
---  print . run $ blah
---  print . run $ A.sum blah
-  -- putStrLn . Prelude.take 80 . Prelude.repeat $ '-'
-  -- let positions = A.use . A.fromList (Z:.2) $ [(-3.5,-4.5,-2.5),(-3.5,-4.0,-4.5)]
-  --     ((NList' idxI idxJ segments), oldIdx) = buildNList' True cell box positions
-  -- print . run $ buildNList'' True cell box positions
-  -- print . run $ idxI
-  -- print . run $ A.sum segments
-  -- print . run $ segments
+      positions' = runPerParticle run positions
+      velocities' = runPerParticle run velocities
+      accelerations' = runPerParticle run accelerations
+  (positions, velocities, accelerations) <- multitimestep n handle (positions', velocities', accelerations')
 
   return ()
