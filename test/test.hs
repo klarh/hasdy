@@ -45,8 +45,8 @@ import Data.Array.Accelerate.CUDA
 --import Data.Array.Accelerate.Interpreter
 
 -- global constants
-scale = 2
-n = 8
+scale = 1.5
+n = 32
 v0 = 1e-1
 box = A.constant box'
 box' = scale3' scale . pure3' $ Prelude.fromIntegral n
@@ -63,8 +63,9 @@ timestep nlist (pos, vel, acc) = velVerlet dt masses forceCalc (pos', vel', acc)
   where
     pos' = perParticleMap (wrapBox box id) pos
     vel' = rescale (constToSingleProp 1) masses vel
---    forceCalc p = Slow.foldNeighbors (makeAbsolute . wrapBox box . cutoff (A.constant (0, 0, 0)) (3**2) $ ljForce lj) plus3 (A.constant (0, 0, 0)) typ typ p p
-    forceCalc p = Fast.foldNeighbors (makeAbsolute . wrapBox box . cutoff (A.constant (0, 0, 0)) (3**2) $ sigmoidalForce sig) plus3 (A.constant (0, 0, 0)) nlist typ typ p p
+    force = makeAbsolute . wrapBox box . cutoff (A.constant (0, 0, 0)) (3**2) $ ljForce lj
+--    forceCalc p = Slow.foldNeighbors force plus3 (A.constant (0, 0, 0)) typ typ p p
+    forceCalc p = Fast.foldNeighbors force plus3 (A.constant (0, 0, 0)) nlist typ typ p p
     masses = singleToParticleProp (constToSingleProp 1) pos
     typ = ParticleType 0
 
@@ -85,7 +86,7 @@ timestep' handle (positions, velocities, accelerations) = do
   return (positions'', velocities'', accelerations'')
 
 -- | a group of timesteps glued together under accelerate's run1
-timestep'' = run1 $ Prelude.foldr1 (>->) . Prelude.take 1 . Prelude.repeat $ accTimestep
+timestep'' = run1 $ Prelude.foldr1 (>->) . Prelude.take 10 . Prelude.repeat $ accTimestep
   where
     accTimestep posvelaccIn = bundlePerParticle typ posvelOut accelerations''
       where
@@ -96,7 +97,7 @@ timestep'' = run1 $ Prelude.foldr1 (>->) . Prelude.take 1 . Prelude.repeat $ acc
         positions' = gatherPerParticle oldIdx positions
         velocities' = gatherPerParticle oldIdx velocities
         accelerations' = gatherPerParticle oldIdx accelerations
-        (positions'', velocities'', accelerations'') = Prelude.iterate (timestep nlist) (positions', velocities', accelerations') Prelude.!! 1
+        (positions'', velocities'', accelerations'') = Prelude.iterate (timestep nlist) (positions', velocities', accelerations') Prelude.!! 10
                                     :: (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
         posOut = bundlePerParticle typ (A.use ()) positions''
         posvelOut = bundlePerParticle typ posOut velocities''
@@ -133,13 +134,16 @@ main = do
       --cell = constToSingleProp (0.999, 0.999, 0.999) :: SingleProp (Vec3' Float)
       --box = constToSingleProp (10, 10, 10) :: SingleProp (Vec3' Float)
       ((NList' idxI idxJ segments), oldIdx) = buildNList' True cell (SingleProp . unit $ box) (use . (flip (M.!) $ typ) . unPerParticleProp' $ positions)
+      (nlist, _) = buildNList True cell (constToSingleProp box') (perParticleMap (wrapBox box id) $ usePerParticle positions)
+      forces = (unPerParticleProp $ Fast.foldNeighbors (makeAbsolute . wrapBox box . cutoff (A.constant (0, 0, 0)) (3**2) $ sigmoidalForce sig) plus3 (A.constant (0, 0, 0)) nlist typ typ (usePerParticle positions) (usePerParticle positions)) M.! typ
 --      blah = buildNList'' True cell box positions
 --  print . run $ positions
+--  print . run $ forces
   print . run . A.unit . A.shape $ idxI
   print . run . A.unit . A.shape $ idxJ
   print . run . A.unit . A.shape $ segments
   print . run $ A.sum segments
-  print . Prelude.take 10 . A.toList . (flip (M.!) $ typ) . unPerParticleProp' $ positions
+--  print . Prelude.take 10 . A.toList . (flip (M.!) $ typ) . unPerParticleProp' $ positions
 
   -- print . run $ idxI
   -- print . run $ idxJ
