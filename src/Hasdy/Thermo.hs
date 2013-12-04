@@ -20,6 +20,13 @@ import Hasdy.Vectors
 temperature::(Elt a, IsFloating a)=>PerParticleProp a->PerParticleProp (Vec3' a)->SingleProp a
 temperature mass velocity = SingleProp . unit $ 2/3*totalEk/totalN
   where
-    twiceEk = mass*(perParticleZipWith dot3 velocity velocity)
-    totalEk = (*0.5) . the . unSingleProp . reducePerType (+) 0 . reducePerParticle (+) 0 $ twiceEk
+    totalEk = the . unSingleProp $ totalKineticEnergy mass velocity
     totalN = A.fromIntegral . the . unSingleProp . reducePerType (+) 0 . countPerParticle $ mass
+
+kineticEnergy::(Elt a, IsFloating a)=>PerParticleProp a->PerParticleProp (Vec3' a)->PerParticleProp a
+kineticEnergy mass velocity = perParticleZipWith (\m vsq -> 0.5*m*vsq) mass velsq
+  where
+    velsq = perParticleZipWith dot3 velocity velocity
+
+totalKineticEnergy::(Elt a, IsFloating a)=>PerParticleProp a->PerParticleProp (Vec3' a)->SingleProp a
+totalKineticEnergy mass velocity = reducePerType (+) 0 . reducePerParticle (+) 0 $ kineticEnergy mass velocity
