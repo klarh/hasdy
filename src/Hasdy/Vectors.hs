@@ -15,7 +15,6 @@ module Hasdy.Vectors where
 
 import Data.Array.Accelerate (Acc, Exp)
 import Data.Array.Accelerate as A
-import Data.NumInstances
 
 -- | Non-symbolic pair
 type Vec2' a = (a, a)
