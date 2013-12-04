@@ -15,14 +15,11 @@ import Control.Monad
 import Data.Array.Accelerate as A
 import Data.Map as M
 import Data.Monoid
-import Data.Text.Lazy (toStrict)
 import Data.Text.Lazy.IO (hPutStr)
 import Data.Text.Lazy.Builder (toLazyText)
 import System.Environment
 import System.IO (FilePath(..), IOMode(..), Handle(..), openFile, hFlush)
 import System.Random (randomRs, mkStdGen)
-import Data.NumInstances
-import GHC.Float (double2Float)
 
 import Data.Array.Accelerate.HasdyContrib as HC
 import Hasdy.Types
