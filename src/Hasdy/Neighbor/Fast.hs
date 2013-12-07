@@ -27,11 +27,8 @@ data NList' = NList' {nlIdxi :: Acc (A.Vector Int),
                       nlIdxj :: Acc (A.Vector Int),
                       nlSegments :: Acc (A.Vector Int)}
 
-zOrder::Vec3 Int->Exp Int
--- zOrder idx = interleave3 z y x
---   where
---     (x, y, z) = A.unlift idx
-zOrder idx = (x*(2^18) + y*(2^9) + z)
+gridOrder::Vec3 Int->Exp Int
+gridOrder idx = (x*(2^18) + y*(2^9) + z)
   where
     (x, y, z) = A.unlift idx
 
@@ -63,10 +60,10 @@ buildNList' skipSelf cell box positions = (NList' idxI idxJ segments, oldIndices
     cells = A.map (map3 A.truncate . (`div3` cell'') . (`plus3` scale3 0.5 box')) positions
 
     -- Sort particles based on the z-order of cell index; len == numParticles
-    unsortedZOrders = A.map zOrder cells
-    cellZOrders::Acc (A.Vector Int)
+    unsortedOrders = A.map gridOrder cells
+    cellOrders::Acc (A.Vector Int)
     oldIndices::Acc (A.Vector Int)
-    (cellZOrders, _, oldIndices) = sort id unsortedZOrders
+    (cellOrders, _, oldIndices) = sort id unsortedOrders
 
     -- Histogram the cells to calculate the number of particles in each cell; len == numCells
     cellSizes::Acc (A.Vector Int)
