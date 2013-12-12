@@ -14,7 +14,8 @@ module Hasdy.Integrate.VelVerlet where
 
 import Data.Array.Accelerate as A
 import Hasdy.Prop (PerParticleProp, SingleProp, unSingleProp, singleToParticleProp, perParticleMap,
-                   perParticleZipWith, plusp3, plusp3')
+                   perParticleZipWith)
+import Hasdy.Prop.Math (plusp3, plusp3')
 import Hasdy.Vectors (Vec3', scale3)
 
 velVerlet::(Elt r, IsFloating r, IsNum r)=>SingleProp r->PerParticleProp r->(PerParticleProp (Vec3' r)->PerParticleProp (Vec3' r))->

@@ -14,7 +14,8 @@ module Hasdy.Integrate.Leapfrog where
 
 import Data.Array.Accelerate as A
 import Hasdy.Prop (PerParticleProp, SingleProp, singleToParticleProp,
-                   perParticleZipWith, plusp3')
+                   perParticleZipWith)
+import Hasdy.Prop.Math (plusp3')
 import Hasdy.Vectors (Vec3', scale3)
 
 leapfrog::(Elt r, IsFloating r, IsNum r)=>SingleProp r->PerParticleProp r->

@@ -24,7 +24,6 @@ library
                        accelerate-cuda >= 0.12,
                        random >= 1
 
-
   exposed-modules:
         Data.Array.Accelerate.HasdyContrib
         Hasdy.Dump.Pos
@@ -34,7 +33,9 @@ library
         Hasdy.Neighbor.Slow
         Hasdy.Potentials.LJ
         Hasdy.Potentials.Sigmoidal
-        Hasdy.Prop
+        Hasdy.Prop,
+        Hasdy.Prop.Bundle,
+        Hasdy.Prop.Math
         Hasdy.Spatial
         Hasdy.Thermo
         Hasdy.Thermostats

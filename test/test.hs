@@ -24,6 +24,7 @@ import System.Random (randomRs, mkStdGen)
 import Data.Array.Accelerate.HasdyContrib as HC
 import Hasdy.Types
 import Hasdy.Prop
+import Hasdy.Prop.Bundle
 import Hasdy.Neighbor.Slow as Slow
 import Hasdy.Integrate.Leapfrog
 import Hasdy.Integrate.VelVerlet
@@ -43,7 +44,7 @@ import Data.Array.Accelerate.CUDA
 
 -- global constants
 scale = 1.5
-n = 32
+n = 16
 v0 = 1e-1
 box = A.constant box'
 box' = scale3' scale . pure3' $ Prelude.fromIntegral n
@@ -64,19 +65,16 @@ timestep nlist (pos, vel, acc) = velVerlet dt masses forceCalc (pos', vel', acc)
 --    forceCalc p = Slow.foldNeighbors force plus3 (A.constant (0, 0, 0)) typ typ p p
     forceCalc p = Fast.foldNeighbors force plus3 (A.constant (0, 0, 0)) nlist typ typ p p
     masses = singleToParticleProp (constToSingleProp 1) pos
-    typ = ParticleType 0
 
 -- | several timesteps + dumping to file
 timestep'::Handle->(PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))->
            IO (PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))
 timestep' handle (positions, velocities, accelerations) = do
-  let posvelaccIn = bundlePerParticle' typ posvelIn accelerations
-      posvelIn = bundlePerParticle' typ posIn velocities
-      posIn = bundlePerParticle' typ () positions
+  let posvelaccIn = bundleAccs . takePP' typ . peelPP' . takePP' typ . peelPP' . takePP' typ $
+                    Bundle ((((), positions), velocities), accelerations) ()
       posvelaccOut = timestep'' posvelaccIn
-      (posvelOut, accelerations'') = unBundlePerParticle' typ posvelaccOut
-      (pos'', velocities'') = unBundlePerParticle' typ posvelOut
-      (_, positions'') = unBundlePerParticle' typ pos''
+      ((((), positions''), velocities''), accelerations'') =
+        bundleProps . givePP' typ . wrapPP' . givePP' typ . wrapPP' . givePP' typ . wrapPP' $ Bundle () posvelaccOut
 
   Data.Text.Lazy.IO.hPutStr handle $ toLazyText . posFrame box' $ unPerParticleProp' positions'' M.! typ
   hFlush handle
@@ -85,19 +83,17 @@ timestep' handle (positions, velocities, accelerations) = do
 -- | a group of timesteps glued together under accelerate's run1
 timestep'' = run1 $ Prelude.foldr1 (>->) . Prelude.take 10 . Prelude.repeat $ accTimestep
   where
-    accTimestep posvelaccIn = bundlePerParticle typ posvelOut accelerations''
+    accTimestep posvelaccIn = bundleAccs . takePP typ . peelPP . takePP typ . peelPP . takePP typ $ bundleOut
       where
-        (posvelIn, accelerations) = unBundlePerParticle typ posvelaccIn
-        (posIn, velocities) = unBundlePerParticle typ posvelIn
-        (_, positions) = unBundlePerParticle typ posIn
+        ((((), positions), velocities), accelerations) =
+          bundleProps . givePP typ . wrapPP . givePP typ . wrapPP . givePP typ . wrapPP $ Bundle () posvelaccIn
         (nlist, oldIdx) = buildNList True cell (constToSingleProp box') (perParticleMap (wrapBox box id) positions)
         positions' = gatherPerParticle oldIdx positions
         velocities' = gatherPerParticle oldIdx velocities
         accelerations' = gatherPerParticle oldIdx accelerations
         (positions'', velocities'', accelerations'') = Prelude.iterate (timestep nlist) (positions', velocities', accelerations') Prelude.!! 10
                                     :: (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
-        posOut = bundlePerParticle typ (A.use ()) positions''
-        posvelOut = bundlePerParticle typ posOut velocities''
+        bundleOut = Bundle ((((), positions''), velocities''), accelerations'') (A.use ())
 
 -- | run n groups of timesteps
 multitimestep n handle (pos, vel, acc) = do
