@@ -36,21 +36,21 @@ gridOffsets::Acc (A.Vector (Vec3' Int))
 gridOffsets = A.use $ A.fromList (Z:.27)
               [(x, y, z) | x <- [-1, 0, 1], y <- [-1, 0, 1], z <- [-1, 0, 1]]
 
-buildNList::(Elt r, IsFloating r)=>Bool->SingleProp (Vec3' r)->SingleProp (Vec3' r)->
+buildNList::(Elt r, IsFloating r)=>Bool->SingleProp r->SingleProp (Vec3' r)->
             PerParticleProp (Vec3' r)->(NList, PerParticleProp Int)
-buildNList skipSelf cell box positions = (nlist, oldIndices)
+buildNList skipSelf cellR box positions = (nlist, oldIndices)
   where
     nlist = NList . M.map Prelude.fst $ result
     oldIndices = PerParticleProp $ M.map Prelude.snd result
-    result = M.map (buildNList' skipSelf cell box) . unPerParticleProp $ positions
+    result = M.map (buildNList' skipSelf cellR box) . unPerParticleProp $ positions
 
-buildNList' skipSelf cell box positions = (NList' idxI idxJ segments, oldIndices)
+buildNList' skipSelf cellR box positions = (NList' idxI idxJ segments, oldIndices)
   where
-    cell' = the . unSingleProp $ cell
+    cellR' = the . unSingleProp $ cellR
     box' = the . unSingleProp $ box
 
     -- Vector and components for box size in cells
-    dim = map3 A.floor $ box' `div3` cell'
+    dim = map3 (A.floor . (/cellR')) box'
     cell'' = box' `div3` map3 A.fromIntegral dim
     (dim0, dim1, dim2) = A.unlift dim :: Vec3' (Exp Int)
     gridSize = fold3 (*) dim

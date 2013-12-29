@@ -24,7 +24,7 @@ import Hasdy.Vectors
 import Hasdy.Neighbor.Fast
 
 data System = System {box :: Vec3' Float,
-                      cell :: Vec3' Float,
+                      cellR :: Float,
                       positions :: [Vec3' Float]} deriving Show
 
 triplify (x:y:z:rest) = (x, y, z):triplify rest
@@ -38,24 +38,24 @@ bigWrap box position = position `minus3'` offset
 instance Arbitrary System where
   arbitrary = do
     box' <- vectorOf 3 (choose (1e-3, 1e3))
-    cellDim' <- vectorOf 3 (choose (3, 5)) :: Gen [Int]
+    cellRDim <- choose (3, 5) :: Gen Int
     positions' <- listOf arbitrary :: Gen [Float]
     let box = map3' abs . head . triplify $ box'
-        cellDim = map3' (max 3) . head . triplify $ cellDim'
-        cell = box `div3'` map3' P.fromIntegral cellDim
+        boxLength = foldr1 min box'
+        cellR = boxLength / P.fromIntegral cellRDim
         positions = bigWrap box <$> triplify positions'
-    return $ System box cell positions
+    return $ System box cellR positions
 
-  shrink (System box cell positions) = System box cell <$> shrink positions
+  shrink (System box cellR positions) = System box cellR <$> shrink positions
 
 system2NList::System->([Int], [Int], [Int])
-system2NList (System box cell positions) = (idxI', idxJ', segments')
+system2NList (System box cellR positions) = (idxI', idxJ', segments')
   where
     idxI' = A.toList . run $ idxI
     idxJ' = A.toList . run $ idxJ
     segments' = A.toList . run $ segments
-    (NList' idxI idxJ segments, _) = buildNList' True cell' box' positions'
-    cell' = constToSingleProp cell
+    (NList' idxI idxJ segments, _) = buildNList' True cellR' box' positions'
+    cellR' = constToSingleProp cellR
     box' = constToSingleProp box
     positions' = A.use . A.fromList (Z:.length positions) $ positions
 
@@ -89,11 +89,11 @@ prop_distance sys = label (show (Set.size sphereNeighbors) P.++ " sphere neighbo
   where
     sphereNeighbors = Set.fromList . A.toList . run . A.map A.fst . A.filter withinSphere $ allPairs
     withinSphere = (<* rmin*rmin) . (\r -> r `dot3` r) . wrapBox (the . unSingleProp $ box') id . A.snd
-    rmin = A.the . A.unit . A.constant . fold3' min $ cell sys
+    rmin = A.the . A.unit . A.constant $ cellR sys
 
     positions' = A.gather oldIndices positions''
-    (_, oldIndices) = buildNList' True cell' box' positions''
-    cell' = constToSingleProp $ cell sys
+    (_, oldIndices) = buildNList' True cellR' box' positions''
+    cellR' = constToSingleProp $ cellR sys
     box' = constToSingleProp $ box sys
     positions'' = A.use . A.fromList (Z:.n) $ positions sys
     n = length . positions $ sys
