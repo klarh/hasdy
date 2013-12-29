@@ -60,36 +60,6 @@ perParticleZipWith' f (PerParticleProp x) (PerParticleProp y) = PerParticleProp 
     z' = A.map (A.uncurry f) <$> M.intersectionWith A.zip x y
     z = M.union z' $ M.union x y
 
--- | Grab a specific element from a 'PerParticleProp' and stick it
--- together into an 'Acc' bundle.
-bundlePerParticle::(Arrays a, Elt b)=>ParticleType->Acc a->PerParticleProp b->Acc (a, Vector b)
-bundlePerParticle typ pre prop = A.lift (pre, vec)
-  where
-    vec = unPerParticleProp prop M.! typ
-
--- | Grab a specific element from a 'PerParticleProp'' and stick it
--- together into a bundle.
-bundlePerParticle'::(Arrays a, Elt b)=>ParticleType->a->PerParticleProp' b->(a, Vector b)
-bundlePerParticle' typ pre prop = (pre, vec)
-  where
-    vec = unPerParticleProp' prop M.! typ
-
--- | Take an 'Acc' bundle, a type, and a 'PerParticleProp' and overwrite
--- the 'PerParticleProp's value with that from the 'Acc' bundle.
-unBundlePerParticle::(Arrays a, Elt b)=>ParticleType->Acc (a, Vector b)->(Acc a, PerParticleProp b)
-unBundlePerParticle typ pre = (arrays, PerParticleProp new)
-  where
-    new = M.fromList [(typ, vec)]
-    (arrays, vec) = A.unlift pre
-
--- | Take a bundle, a type, and a 'PerParticleProp'' and overwrite
--- the 'PerParticleProp''s value with that from the bundle.
-unBundlePerParticle'::(Arrays a, Elt b)=>ParticleType->(a, Vector b)->(a, PerParticleProp' b)
-unBundlePerParticle' typ pre = (arrays, PerParticleProp' new)
-  where
-    new = M.fromList [(typ, vec)]
-    (arrays, vec) = pre
-
 -- | Rearranges the elements of a 'PerParticleProp' according to an
 -- index mapping.
 gatherPerParticle::(Elt a)=>PerParticleProp Int->PerParticleProp a->PerParticleProp a
