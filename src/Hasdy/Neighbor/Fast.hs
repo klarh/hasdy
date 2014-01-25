@@ -12,11 +12,13 @@
 
 module Hasdy.Neighbor.Fast where
 
+import Control.Applicative ((<$>))
 import Data.Array.Accelerate as A
 import qualified Data.Map as M
 
 import Data.Array.Accelerate.HasdyContrib as HC
 import Hasdy.Prop
+import Hasdy.Prop.Math (minusp3)
 import Hasdy.Types
 import Hasdy.Utils
 import Hasdy.Utils.Sort
@@ -103,6 +105,42 @@ buildNList' skipSelf cellR box positions = (NList' idxI idxJ segments, oldIndice
     segments
       | skipSelf = A.map (\x -> max 0 (x - 1)) segments'
       | otherwise = segments'
+
+-- | Choose the left neighbor list if a condition is true, else choose
+-- the right neighbor list
+chooseNList::PerTypeProp Bool->(NList, NList)->NList
+chooseNList cond (left, right) = NList $ M.intersectionWith chooseNList' cond' pairs
+  where
+    cond' = the <$> unPerTypeProp cond
+    (left', right') = (unNList left, unNList right)
+    pairs = M.intersectionWith (,) left' right'
+
+chooseNList'::Exp Bool->(NList', NList')->NList'
+chooseNList' cond ((NList' lefti leftj leftseg), (NList' righti rightj rightseg)) =
+  NList' idxi idxj seg
+  where
+    idxi = cond ?| (lefti, righti)
+    idxj = cond ?| (leftj, rightj)
+    seg = cond ?| (leftseg, rightseg)
+
+-- | Rebuild neighbor list if particles have moved farther than a given distance
+maybeRebuildNList::(Elt r, IsFloating r)=>Bool->SingleProp r->SingleProp r->SingleProp (Vec3' r)->
+                   PerParticleProp (Vec3' r)->PerParticleProp (Vec3' r)->NList->
+                   (PerTypeProp Bool, NList, PerParticleProp Int)
+maybeRebuildNList skipSelf cellR maxDistance box oldPositions positions old =
+  (rebuilt, nlist', oldIndices)
+  where
+    rebuilt = reducePerParticle (||*) (A.constant False) overCutoffs
+    overCutoffs = perParticleMap (>* rcut*rcut) rsq
+    rsq = perParticleMap (\x -> x `dot3` x) $ positions `minusp3` oldPositions
+    rcut = the . unSingleProp $ maxDistance
+
+    nlist' = chooseNList rebuilt (new, old)
+
+    (new, newIdx) = buildNList skipSelf cellR box positions
+
+    oldIndices = choosePerParticle rebuilt (newIdx, trivIdx)
+    trivIdx = overPerParticle (fmap (\x -> A.generate (A.shape x) A.unindex1)) oldPositions
 
 -- | mostly garbage implementation specialized
 foldNeighbors::(Elt a, Elt b, Elt c)=>(Exp a->Exp b->Exp c)->

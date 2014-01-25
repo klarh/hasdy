@@ -37,6 +37,10 @@ usePerParticle (PerParticleProp' m) = PerParticleProp $ A.use <$> m
 runPerParticle::(Arrays (Vector a), Elt a)=>(Acc (Vector a)->Vector a)->PerParticleProp a->PerParticleProp' a
 runPerParticle run (PerParticleProp m) = PerParticleProp' $ run <$> m
 
+overPerParticle::(Elt a, Elt b)=>(M.Map ParticleType (Acc (A.Vector a))->M.Map ParticleType (Acc (A.Vector b)))->
+                 PerParticleProp a->PerParticleProp b
+overPerParticle f = PerParticleProp . f . unPerParticleProp
+
 -- | Map a function onto each particle's attribute
 perParticleMap::(Elt a, Elt b)=>(Exp a->Exp b)->PerParticleProp a->PerParticleProp b
 perParticleMap f (PerParticleProp x) = PerParticleProp $ M.map (A.map f) x
@@ -65,6 +69,12 @@ perParticleZipWith' f (PerParticleProp x) (PerParticleProp y) = PerParticleProp 
 gatherPerParticle::(Elt a)=>PerParticleProp Int->PerParticleProp a->PerParticleProp a
 gatherPerParticle idx = PerParticleProp . M.intersectionWith A.gather (unPerParticleProp idx) . unPerParticleProp
 
+-- | Gather a per-particle prop if a condition is true
+maybeGatherPerParticle::(Elt a)=>PerTypeProp Bool->PerParticleProp Int->PerParticleProp a->PerParticleProp a
+maybeGatherPerParticle cond idx prop = choosePerParticle cond (gathered, prop)
+  where
+    gathered = gatherPerParticle idx prop
+
 -- | Reduce a 'PerParticleProp' into a 'PerTypeProp' using a monoidal function
 reducePerParticle::Elt a=>(Exp a->Exp a->Exp a)->Exp a->PerParticleProp a->PerTypeProp a
 reducePerParticle f x0 = PerTypeProp . M.map (A.fold f x0) . unPerParticleProp
@@ -72,6 +82,14 @@ reducePerParticle f x0 = PerTypeProp . M.map (A.fold f x0) . unPerParticleProp
 -- | Count the number of particles of each type
 countPerParticle::Elt a=>PerParticleProp a->PerTypeProp Int
 countPerParticle = PerTypeProp . M.map (A.unit . A.size) . unPerParticleProp
+
+-- | Take the left value if the condition is true, else take the right value
+choosePerParticle::Elt a=>PerTypeProp Bool->(PerParticleProp a, PerParticleProp a)->
+                   PerParticleProp a
+choosePerParticle cond (left, right) = PerParticleProp . M.intersectionWith (?|) cond' $ choices
+  where
+    cond' = the <$> unPerTypeProp cond
+    choices = M.intersectionWith (,) (unPerParticleProp left) (unPerParticleProp right)
 
 -- | 'PerTypeProp' is an associated list of 'ParticleType's with
 -- symbolic scalar quantities, one for each particle type.
