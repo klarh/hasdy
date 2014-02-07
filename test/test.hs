@@ -54,6 +54,8 @@ sig = Sigmoidal (unit 1) (unit 1) (unit 3) :: Sigmoidal Float
 dt = constToSingleProp 0.005
 typ = ParticleType 0
 
+state = usePP typ <. newPP <. usePP typ <. newPP <. usePP typ <. newPP
+
 -- | a single timestep in terms of 'PerParticleProp's
 timestep::NList->(PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))->
           (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
@@ -62,7 +64,6 @@ timestep nlist (pos, vel, acc) = velVerlet dt masses forceCalc (pos', vel', acc)
     pos' = perParticleMap (wrapBox box id) pos
     vel' = rescale (constToSingleProp 1) masses vel
     force = makeAbsolute . wrapBox box . cutoff (A.constant (0, 0, 0)) (3**2) $ ljForce lj
---    forceCalc p = Slow.foldNeighbors force plus3 (A.constant (0, 0, 0)) typ typ p p
     forceCalc p = Fast.foldNeighbors force plus3 (A.constant (0, 0, 0)) nlist typ typ p p
     masses = singleToParticleProp (constToSingleProp 1) pos
 
@@ -70,11 +71,10 @@ timestep nlist (pos, vel, acc) = velVerlet dt masses forceCalc (pos', vel', acc)
 timestep'::Handle->(PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))->
            IO (PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))
 timestep' handle (positions, velocities, accelerations) = do
-  let posvelaccIn = bundleAccs . takePP' typ . peelPP' . takePP' typ . peelPP' . takePP' typ $
+  let posvelaccIn = bundleAccs . toAccs' state $
                     Bundle ((((), positions), velocities), accelerations) ()
       posvelaccOut = timestep'' posvelaccIn
-      ((((), positions''), velocities''), accelerations'') =
-        bundleProps . givePP' typ . wrapPP' . givePP' typ . wrapPP' . givePP' typ . wrapPP' $ Bundle () posvelaccOut
+      ((((), positions''), velocities''), accelerations'') = bundleProps . toProps' state $ Bundle () posvelaccOut
 
   Data.Text.Lazy.IO.hPutStr handle $ toLazyText . posFrame box' $ unPerParticleProp' positions'' M.! typ
   hFlush handle
@@ -83,10 +83,10 @@ timestep' handle (positions, velocities, accelerations) = do
 -- | a group of timesteps glued together under accelerate's run1
 timestep'' = run1 $ Prelude.foldr1 (>->) . Prelude.take 10 . Prelude.repeat $ accTimestep
   where
-    accTimestep posvelaccIn = bundleAccs . takePP typ . peelPP . takePP typ . peelPP . takePP typ $ bundleOut
+    accTimestep posvelaccIn = bundleAccs . toAccs state $ bundleOut
       where
         ((((), positions), velocities), accelerations) =
-          bundleProps . givePP typ . wrapPP . givePP typ . wrapPP . givePP typ . wrapPP $ Bundle () posvelaccIn
+          bundleProps . toProps state $ Bundle () posvelaccIn
         (nlist, oldIdx) = buildNList True cellR (constToSingleProp box') (perParticleMap (wrapBox box id) positions)
         positions' = gatherPerParticle oldIdx positions
         velocities' = gatherPerParticle oldIdx velocities
