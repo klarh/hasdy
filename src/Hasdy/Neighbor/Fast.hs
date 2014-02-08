@@ -198,3 +198,13 @@ giveNList' typ (Bundle (a, nlist) v) = Bundle (a, nlist') (Prelude.fst v)
     nlist' = NList' . M.insert typ newnl . unNList' $ nlist
     newnl = SNList' ixi ixj seg
     (ixi, ixj, seg) = Prelude.snd v
+
+wrapNList::Bundle props accs->Bundle (props, NList) accs
+wrapNList (Bundle props accs) = Bundle (props, NList M.empty) accs
+
+wrapNList'::Bundle props accs->Bundle (props, NList') accs
+wrapNList' (Bundle props accs) = Bundle (props, NList' M.empty) accs
+
+useNList typ = BLens (takeNList typ) (giveNList typ) (takeNList' typ) (giveNList' typ)
+
+newNList = BLens peel wrapNList peel wrapNList'
