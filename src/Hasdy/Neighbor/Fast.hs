@@ -18,16 +18,23 @@ import qualified Data.Map as M
 
 import Data.Array.Accelerate.HasdyContrib as HC
 import Hasdy.Prop
+import Hasdy.Prop.Bundle
 import Hasdy.Prop.Math (minusp3)
 import Hasdy.Types
 import Hasdy.Utils
 import Hasdy.Utils.Sort
 import Hasdy.Vectors
 
-data NList = NList {unNList :: M.Map ParticleType NList'}
-data NList' = NList' {nlIdxi :: Acc (A.Vector Int),
+data NList = NList {unNList :: M.Map ParticleType SNList}
+data NList' = NList' {unNList' :: M.Map ParticleType SNList'}
+
+data SNList = SNList {nlIdxi :: Acc (A.Vector Int),
                       nlIdxj :: Acc (A.Vector Int),
                       nlSegments :: Acc (A.Vector Int)}
+
+data SNList' = SNList' {nlIdxi' :: A.Vector Int,
+                        nlIdxj' :: A.Vector Int,
+                        nlSegments' :: A.Vector Int}
 
 gridOrder::Vec3 Int->Exp Int
 gridOrder idx = (x*(2^18) + y*(2^9) + z)
@@ -46,7 +53,7 @@ buildNList skipSelf cellR box positions = (nlist, oldIndices)
     oldIndices = PerParticleProp $ M.map Prelude.snd result
     result = M.map (buildNList' skipSelf cellR box) . unPerParticleProp $ positions
 
-buildNList' skipSelf cellR box positions = (NList' idxI idxJ segments, oldIndices)
+buildNList' skipSelf cellR box positions = (SNList idxI idxJ segments, oldIndices)
   where
     cellR' = the . unSingleProp $ cellR
     box' = the . unSingleProp $ box
@@ -109,15 +116,15 @@ buildNList' skipSelf cellR box positions = (NList' idxI idxJ segments, oldIndice
 -- | Choose the left neighbor list if a condition is true, else choose
 -- the right neighbor list
 chooseNList::PerTypeProp Bool->(NList, NList)->NList
-chooseNList cond (left, right) = NList $ M.intersectionWith chooseNList' cond' pairs
+chooseNList cond (left, right) = NList $ M.intersectionWith chooseSNList cond' pairs
   where
     cond' = the <$> unPerTypeProp cond
     (left', right') = (unNList left, unNList right)
     pairs = M.intersectionWith (,) left' right'
 
-chooseNList'::Exp Bool->(NList', NList')->NList'
-chooseNList' cond ((NList' lefti leftj leftseg), (NList' righti rightj rightseg)) =
-  NList' idxi idxj seg
+chooseSNList::Exp Bool->(SNList, SNList)->SNList
+chooseSNList cond ((SNList lefti leftj leftseg), (SNList righti rightj rightseg)) =
+  SNList idxi idxj seg
   where
     idxi = cond ?| (lefti, righti)
     idxj = cond ?| (leftj, rightj)
@@ -150,8 +157,44 @@ foldNeighbors f combx x0 nlist typeA typeB propi propj
   | typeA == typeB = PerParticleProp $ M.fromList [(typeA, xAA)]
   | otherwise = undefined
   where
-    (NList' idxI idxJ segments) = (flip (M.!) $ typeA) . unNList $ nlist
+    (SNList idxI idxJ segments) = (flip (M.!) $ typeA) . unNList $ nlist
     xAA = foldSeg combx x0 xij segments
     xij = A.zipWith f xi xj
     xi = A.gather idxI ((flip (M.!) $ typeA) . unPerParticleProp $ propi)
     xj = A.gather idxJ ((flip (M.!) $ typeA) . unPerParticleProp $ propj)
+
+takeNList::Arrays c=>ParticleType->
+           Bundle (a, NList) (Acc c)->
+           Bundle (a, NList) (Acc (c, (A.Vector Int, A.Vector Int, A.Vector Int)))
+takeNList typ (Bundle (a, nlist) c) = Bundle (a, nlist) (A.lift (c, (ixi, ixj, seg)))
+  where
+    ixi = nlIdxi $ unNList nlist M.! typ
+    ixj = nlIdxj $ unNList nlist M.! typ
+    seg = nlSegments $ unNList nlist M.! typ
+
+takeNList'::Arrays c=>ParticleType->
+            Bundle (a, NList') c->
+            Bundle (a, NList') (c, (A.Vector Int, A.Vector Int, A.Vector Int))
+takeNList' typ (Bundle (a, nlist) c) = Bundle (a, nlist) (c, (ixi, ixj, seg))
+  where
+    ixi = nlIdxi' $ unNList' nlist M.! typ
+    ixj = nlIdxj' $ unNList' nlist M.! typ
+    seg = nlSegments' $ unNList' nlist M.! typ
+
+giveNList::Arrays c=>ParticleType->
+           Bundle (a, NList) (Acc (c, (A.Vector Int, A.Vector Int, A.Vector Int)))->
+           Bundle (a, NList) (Acc c)
+giveNList typ (Bundle (a, nlist) v) = Bundle (a, nlist') (A.fst v)
+  where
+    nlist' = NList . M.insert typ newnl . unNList $ nlist
+    newnl = SNList ixi ixj seg
+    (ixi, ixj, seg) = A.unlift . A.snd $ v
+
+giveNList'::Arrays c=>ParticleType->
+            Bundle (a, NList') (c, (A.Vector Int, A.Vector Int, A.Vector Int))->
+            Bundle (a, NList') c
+giveNList' typ (Bundle (a, nlist) v) = Bundle (a, nlist') (Prelude.fst v)
+  where
+    nlist' = NList' . M.insert typ newnl . unNList' $ nlist
+    newnl = SNList' ixi ixj seg
+    (ixi, ixj, seg) = Prelude.snd v
