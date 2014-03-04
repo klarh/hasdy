@@ -48,13 +48,17 @@ n = 16
 v0 = 1e-1
 box = A.constant box'
 box' = scale3' scale . pure3' $ Prelude.fromIntegral n
-cellR = constToSingleProp 3
+rbuf = constToSingleProp 3
+cellR = constToSingleProp 6
 lj = LJ (unit 1) (unit 1) :: LJ Float
 sig = Sigmoidal (unit 1) (unit 1) (unit 3) :: Sigmoidal Float
 dt = constToSingleProp 0.005
 typ = ParticleType 0
 
-state = usePP typ <. newPP <. usePP typ <. newPP <. usePP typ <. newPP
+state = usePP typ <. newPP <. useNList typ <. newNList <. -- neighbor list + old positions
+        usePP typ <. newPP <. -- accelerations
+        usePP typ <. newPP <. -- velocities
+        usePP typ <. newPP -- positions
 
 -- | a single timestep in terms of 'PerParticleProp's
 timestep::NList->(PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))->
@@ -67,40 +71,43 @@ timestep nlist (pos, vel, acc) = velVerlet dt masses forceCalc (pos', vel', acc)
     forceCalc p = Fast.foldNeighbors force plus3 (A.constant (0, 0, 0)) nlist typ typ p p
     masses = singleToParticleProp (constToSingleProp 1) pos
 
+-- | a group of timesteps glued together under accelerate's run1; also
+-- rebuilds neighbor lists if necessary
+runTimesteps = runBLens run1 (canal1 state . liftAccs $ f) state state
+  where
+    f = Prelude.foldr1 (>->) . Prelude.take 10 . Prelude.repeat $ unliftAccs . bridge1 state $ accTimestep
+    accTimestep bundIn = bundOut
+      where
+        ((((((), positions), velocities), accelerations), nlist), oldPositions) = bundleProps bundIn
+
+        (rebuilt, nlist', oldIdx) = maybeRebuildNList True cellR rbuf (constToSingleProp box') oldPositions positions nlist
+        positions' = maybeGatherPerParticle rebuilt oldIdx positions
+        velocities' = maybeGatherPerParticle rebuilt oldIdx velocities
+        accelerations' = maybeGatherPerParticle rebuilt oldIdx accelerations
+        oldPositions' = maybeGatherPerParticle rebuilt oldIdx positions
+
+        (positions'', velocities'', accelerations'') = Prelude.iterate (timestep nlist') (positions', velocities', accelerations') Prelude.!! 10
+                                    :: (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
+        bundOut = Bundle ((((((), positions''), velocities''), accelerations''), nlist'), oldPositions') (A.use ())
+
 -- | several timesteps + dumping to file
-timestep'::Handle->(PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))->
-           IO (PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))
-timestep' handle (positions, velocities, accelerations) = do
-  let posvelaccIn = bundleAccs . toAccs' state $
-                    Bundle ((((), positions), velocities), accelerations) ()
-      posvelaccOut = timestep'' posvelaccIn
-      ((((), positions''), velocities''), accelerations'') = bundleProps . toProps' state $ Bundle () posvelaccOut
+-- dumpTimesteps::Handle->(PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))->
+--            IO (PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float), PerParticleProp' (Vec3' Float))
+dumpTimesteps handle (positions, velocities, accelerations, nlist, oldPositions) = do
+  let posvelaccIn = Bundle ((((((), positions), velocities), accelerations), nlist), oldPositions) ()
+      ((((((), positions''), velocities''), accelerations''), nlist''), oldPositions'') =
+        bundleProps . runTimesteps $ posvelaccIn
 
   Data.Text.Lazy.IO.hPutStr handle $ toLazyText . posFrame box' $ unPerParticleProp' positions'' M.! typ
   hFlush handle
-  return (positions'', velocities'', accelerations'')
-
--- | a group of timesteps glued together under accelerate's run1
-timestep'' = run1 $ Prelude.foldr1 (>->) . Prelude.take 10 . Prelude.repeat $ accTimestep
-  where
-    accTimestep posvelaccIn = bundleAccs . toAccs state $ bundleOut
-      where
-        ((((), positions), velocities), accelerations) =
-          bundleProps . toProps state $ Bundle () posvelaccIn
-        (nlist, oldIdx) = buildNList True cellR (constToSingleProp box') (perParticleMap (wrapBox box id) positions)
-        positions' = gatherPerParticle oldIdx positions
-        velocities' = gatherPerParticle oldIdx velocities
-        accelerations' = gatherPerParticle oldIdx accelerations
-        (positions'', velocities'', accelerations'') = Prelude.iterate (timestep nlist) (positions', velocities', accelerations') Prelude.!! 10
-                                    :: (PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float), PerParticleProp (Vec3' Float))
-        bundleOut = Bundle ((((), positions''), velocities''), accelerations'') (A.use ())
+  return (positions'', velocities'', accelerations'', nlist'', oldPositions'')
 
 -- | run n groups of timesteps
-multitimestep n handle (pos, vel, acc) = do
-  (pos', vel', acc') <- timestep' handle (pos, vel, acc)
+multitimestep n handle (pos, vel, acc, nl, oldP) = do
+  (pos', vel', acc', nl', oldP') <- dumpTimesteps handle (pos, vel, acc, nl, oldP)
   if n <= 0
-    then return (pos, vel, acc)
-    else multitimestep (n-1) handle (pos', vel', acc')
+    then return (pos, vel, acc, nl, oldP)
+    else multitimestep (n-1) handle (pos', vel', acc', nl', oldP')
 
 main = do
   let grid idx = r `minus3` center
@@ -122,6 +129,9 @@ main = do
       positions' = runPerParticle run positions
       velocities' = runPerParticle run velocities
       accelerations' = runPerParticle run accelerations
-  (positions, velocities, accelerations) <- multitimestep n handle (positions', velocities', accelerations')
+      emptyIdx = A.fromList (Z:.0) [] :: A.Vector Int
+      nlist0 = NList' . M.fromList $ [(typ, SNList' emptyIdx emptyIdx emptyIdx)]
+      initState = (positions', velocities', accelerations', emptyNList', accelerations')
+  (positions, velocities, accelerations, _, _) <- multitimestep n handle initState
 
   return ()

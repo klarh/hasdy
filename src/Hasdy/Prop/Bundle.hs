@@ -91,11 +91,27 @@ compose (BLens a b c d) (BLens a' b' c' d') = BLens (a' . a) (b . b') (c' . c) (
 
 (<.) = compose
 
+-- | Convert a function operating on property bundles to a function on acc bundles
 bridge::BLens a b a' b'->BLens c d c' d'->(a->c)->(b->d)
 bridge l1 l2 f = toAccs l2 . f . toProps l1
 
+bridge'::BLens a b a' b'->BLens c d c' d'->(a'->c')->(b'->d')
+bridge' l1 l2 f = toAccs' l2 . f . toProps' l1
+
+-- | Convert an endomorphism on prop bundles to an endomorphism on acc bundles
 bridge1::BLens a b a' b'->(a->a)->(b->b)
 bridge1 l f = bridge l l f
+
+-- | Convert a function operating on acc bundles to one operating on prop bundles
+canal::BLens a b a' b'->BLens c d c' d'->(b->d)->(a->c)
+canal l1 l2 f = toProps l2 . f . toAccs l1
+
+canal'::BLens a b a' b'->BLens c d c' d'->(b'->d')->(a'->c')
+canal' l1 l2 f = toProps' l2 . f . toAccs' l1
+
+-- | Convert an endomorphism on acc bundles to an endomorphism on prop bundles
+canal1::BLens a b a' b'->(b->b)->(a->a)
+canal1 l f = canal l l f
 
 usePP typ = BLens (takePP typ) (givePP typ) (takePP' typ) (givePP' typ)
 
@@ -107,3 +123,31 @@ newPP = BLens peel wrapPP peel wrapPP'
 --        BLens (Bundle ((a, SingleProp b), SingleProp b) (Acc c1)) c (Bundle ((a1, SingleProp' b1), SingleProp' b1) c2) c'
 newSP::(Elt b, Elt b1, Arrays c, Arrays c1)=>BLens (Bundle ((a, SingleProp b), SingleProp b) (Acc c)) (Bundle (a, SingleProp b) (Acc (c, Scalar b))) (Bundle ((a1, SingleProp' b1), SingleProp' b1) c1) (Bundle (a1, SingleProp' b1) (c1, Scalar b1))
 newSP = BLens (takeSP . peel) giveSP (takeSP' . peel) giveSP'
+
+-- runBLens::(Arrays a, Arrays b)=>((Acc a->Acc b)->a->b)->
+--           (c->e)->BLens c d c' d'->BLens e f e' f'->
+runBLens run1 f left right = canal' left right . liftAccs $ run1 (unliftAccs . bridge left right $ f)
+
+-- | Convert a function on prop bundles to one on props
+unliftProps::(Bundle a (Acc ())->Bundle c (Acc ()))->a->c
+unliftProps f a = bundleProps . f $ Bundle a (A.use ())
+
+unliftProps'::(Bundle a' ()->Bundle c' ())->a'->c'
+unliftProps' f a' = bundleProps . f $ Bundle a' ()
+
+-- | Convert a function on acc bundles (or array tuples) to one on
+-- accs (or array tuples)
+unliftAccs::(Bundle () b->Bundle () d)->b->d
+unliftAccs f b = bundleAccs . f $ Bundle () b
+
+-- | Convert a function on props to one on prop bundles
+liftProps::(a->b)->Bundle a (Acc ())->Bundle b (Acc ())
+liftProps f (Bundle a v) = Bundle (f a) v
+
+liftProps'::(a'->b')->Bundle a' ()->Bundle b' ()
+liftProps' f (Bundle a' ()) = Bundle (f a') ()
+
+-- | Convert a function on Accs or Acc tuples to one on Acc or
+-- tuple bundles.
+liftAccs::(a->b)->Bundle () a->Bundle () b
+liftAccs f (Bundle () a) = Bundle () (f a)

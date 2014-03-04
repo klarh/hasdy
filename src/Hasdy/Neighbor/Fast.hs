@@ -19,7 +19,7 @@ import qualified Data.Map as M
 import Data.Array.Accelerate.HasdyContrib as HC
 import Hasdy.Prop
 import Hasdy.Prop.Bundle
-import Hasdy.Prop.Math (minusp3)
+import Hasdy.Prop.Math (minusp3')
 import Hasdy.Types
 import Hasdy.Utils
 import Hasdy.Utils.Sort
@@ -27,6 +27,8 @@ import Hasdy.Vectors
 
 data NList = NList {unNList :: M.Map ParticleType SNList}
 data NList' = NList' {unNList' :: M.Map ParticleType SNList'}
+
+emptyNList' = NList' M.empty
 
 data SNList = SNList {nlIdxi :: Acc (A.Vector Int),
                       nlIdxj :: Acc (A.Vector Int),
@@ -139,7 +141,7 @@ maybeRebuildNList skipSelf cellR maxDistance box oldPositions positions old =
   where
     rebuilt = reducePerParticle (||*) (A.constant False) overCutoffs
     overCutoffs = perParticleMap (>* rcut*rcut) rsq
-    rsq = perParticleMap (\x -> x `dot3` x) $ positions `minusp3` oldPositions
+    rsq = perParticleMap (\x -> x `dot3` x) $ positions `minusp3'` oldPositions
     rcut = the . unSingleProp $ maxDistance
 
     nlist' = chooseNList rebuilt (new, old)
