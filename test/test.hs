@@ -131,7 +131,7 @@ main = do
       accelerations' = runPerParticle run accelerations
       emptyIdx = A.fromList (Z:.0) [] :: A.Vector Int
       nlist0 = NList' . M.fromList $ [(typ, SNList' emptyIdx emptyIdx emptyIdx)]
-      initState = (positions', velocities', accelerations', emptyNList', accelerations')
+      initState = (positions', velocities', accelerations', nlist0, accelerations')
   (positions, velocities, accelerations, _, _) <- multitimestep n handle initState
 
   return ()
