@@ -18,7 +18,7 @@ import Data.Monoid
 import Data.Text.Lazy.IO (hPutStr)
 import Data.Text.Lazy.Builder (toLazyText)
 import System.Environment
-import System.IO (FilePath(..), IOMode(..), Handle(..), openFile, hFlush)
+import System.IO (FilePath(..), IOMode(..), Handle(..), openFile, hFlush, hClose)
 import System.Random (randomRs, mkStdGen)
 
 import Data.Array.Accelerate.HasdyContrib as HC
@@ -133,5 +133,6 @@ main = do
       nlist0 = NList' . M.fromList $ [(typ, SNList' emptyIdx emptyIdx emptyIdx)]
       initState = (positions', velocities', accelerations', nlist0, accelerations')
   (positions, velocities, accelerations, _, _) <- multitimestep n handle initState
+  hClose handle
 
   return ()
