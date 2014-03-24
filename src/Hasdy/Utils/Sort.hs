@@ -16,32 +16,39 @@ import Control.Applicative ((<$>))
 import Prelude as P
 import Data.Array.Accelerate as A
 
+msb::(Elt a, IsFloating a)=>Exp a->Exp Int
+msb = A.ceiling . logBase 2
+
 -- | simple radix sort. Takes a function by which to generate keys
 -- (keys should be >0 to be sorted "properly") and a vector of values
 -- and returns (the sorted vector of keys, the sorted vector of
 -- values, and the sorted vector of old indices suitable for a gather
 -- operation).
 sort::Elt a=>(Exp a->Exp Int)->Acc (A.Vector a)->
-         (Acc (A.Vector Int), Acc (A.Vector a), Acc (A.Vector Int))
+      (Acc (A.Vector Int), Acc (A.Vector a), Acc (A.Vector Int))
 sort key v = (keys, values, oldIndices)
   where
-    result = P.foldr1 (>->) sorters v0s
+    result = A.awhile iterCond sort' v0s
 
-    keys = P.fst . A.unzip $ result
-    values = P.fst . A.unzip . P.snd . A.unzip $ result
-    oldIndices = P.snd . A.unzip . P.snd . A.unzip $ result
+    keys = P.fst . A.unzip . A.snd $ result
+    values = P.fst . A.unzip . P.snd . A.unzip . A.snd $ result
+    oldIndices = P.snd . A.unzip . P.snd . A.unzip . A.snd $ result
 
-    -- Start with a vector of (keyvalue, (value, originalIndex)) tuples
-    v0s = A.zip (A.map key v) $ A.zip v (A.generate (A.shape v) unindex1)
-    sorters = sort' <$> P.reverse indices
+    iterCond = A.unit . (<=* maxBit) . the . A.fst
+    maxBit = msb . (A.fromIntegral::Exp Int->Exp Float) . the . A.maximum $ key0s
+    key0s = A.map key v
+    v0s = A.lift (A.unit . A.constant $ 0,
+                  A.zip key0s $ A.zip v (A.generate (A.shape v) unindex1))
 
-    -- sort' takes an integer bit index to sort by
-    sort'::Elt a=>Exp Int->Acc (A.Vector (Int, (a, Int)))->
-           Acc (A.Vector (Int, (a, Int)))
-    sort' n vs = A.scatter newIndices vs vs
+    -- sort' performs a single sorting step
+    sort'::Elt a=>Acc (A.Scalar Int, A.Vector (Int, (a, Int)))->
+           Acc (A.Scalar Int, A.Vector (Int, (a, Int)))
+    sort' vs = A.lift (A.unit (n+1), A.scatter newIndices vs' vs')
       where
+        n = the . A.fst $ vs
+        vs' = A.snd vs
         idx = A.prescanl (+) 0 bits
-        bits = A.map (A.boolToInt . (flip A.testBit $ n) . A.fst) vs
+        bits = A.map (A.boolToInt . (flip A.testBit $ n) . A.fst) vs'
         unbits = A.map (1-) bits
         falseIndices = A.init $ A.scanl (+) 0 unbits
         numFalses = (A.reverse falseIndices A.!! 0) + (A.reverse unbits A.!! 0)
@@ -51,5 +58,3 @@ sort key v = (keys, values, oldIndices)
           (b ==* 1) ? (x, y)
           where
             (b, x, y) = A.unlift v :: (Exp Int, Exp Int, Exp Int)
-
-    indices = A.constant <$> [31, 30..0]
