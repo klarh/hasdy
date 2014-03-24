@@ -44,7 +44,7 @@ import Data.Array.Accelerate.CUDA
 
 -- global constants
 scale = 1.5
-n = 16
+n = 8
 v0 = 1e-1
 box = A.constant box'
 box' = scale3' scale . pure3' $ Prelude.fromIntegral n
